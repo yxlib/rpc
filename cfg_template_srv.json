@@ -1,0 +1,18 @@
+{
+    "mark" : "RPC_TEST_3",
+    "func" :
+    {
+        "SayHello" :
+        {
+            "handler" : "OnSayHello",
+            "req" : "github.com/yxlib/rpc.SayHelloReq",
+            "resp" : "github.com/yxlib/rpc.SayHelloResp"
+        },
+        "SayHi" :
+        {
+            "handler" : "OnSayHi",
+            "req" : "github.com/yxlib/rpc.SayHiReq",
+            "resp" : "github.com/yxlib/rpc.SayHiResp"
+        }
+    }
+}
