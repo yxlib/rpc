@@ -53,7 +53,7 @@ type BaseServer struct {
 	logger            *yx.Logger
 }
 
-func NewServer(net Net, peerType uint16, peerNo uint16) *BaseServer {
+func NewBaseServer(net Net, peerType uint16, peerNo uint16) *BaseServer {
 	s := &BaseServer{
 		mark:              "",
 		peerType:          peerType,
@@ -75,7 +75,7 @@ func (s *BaseServer) SetInterceptor(inter Interceptor) {
 
 func (s *BaseServer) SetMark(mark string) {
 	s.mark = mark
-	s.net.SetReadMark(s.mark, 0, 0)
+	s.net.SetReadMark(s.mark, true, 0, 0)
 }
 
 func (s *BaseServer) GetMark() string {
@@ -100,25 +100,31 @@ func (s *BaseServer) AddReflectProcessor(processor reflect.Value, funcNo uint16,
 	return nil
 }
 
-func (s *BaseServer) GetFuncList() map[string]uint16 {
+func (s *BaseServer) Start() {
+	s.readPackLoop()
+}
+
+func (s *BaseServer) Stop() {
+	s.net.Close()
+}
+
+func (s *BaseServer) WritePack(payload []ByteArray, dstPeerType uint16, dstPeerNo uint16) error {
+	return s.net.WriteRpcPack(payload, dstPeerType, dstPeerNo)
+}
+
+func (s *BaseServer) OnFetchFuncList(req interface{}, resp interface{}, srcPeerType uint16, srcPeerNo uint16) error {
+	respData := resp.(*FetchFuncListResp)
+	respData.MapFuncName2No = s.getFuncList()
+	return nil
+}
+
+func (s *BaseServer) getFuncList() map[string]uint16 {
 	mapFuncName2No := make(map[string]uint16)
 	for funcNo, funcName := range s.mapFuncNo2Name {
 		mapFuncName2No[funcName] = funcNo
 	}
 
 	return mapFuncName2No
-}
-
-func (s *BaseServer) Start() {
-	s.readPackLoop()
-}
-
-func (s *BaseServer) Stop() {
-	// s.net.Close()
-}
-
-func (s *BaseServer) WritePack(payload []ByteArray, dstPeerType uint16, dstPeerNo uint16) error {
-	return s.net.WriteRpcPack(payload, dstPeerType, dstPeerNo)
 }
 
 func (s *BaseServer) readPackLoop() {

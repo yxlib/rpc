@@ -36,8 +36,9 @@ var ProtoBinder = &protoBinder{
 
 // Register proto type.
 // @param proto, the proto.
-func (b *protoBinder) RegisterProto(proto yx.Reuseable) error {
-	return b.factory.RegisterObject(proto, INIT_REUSE_COUNT, MAX_REUSE_COUNT)
+func (b *protoBinder) RegisterProto(proto interface{}) error {
+	_, err := b.factory.RegisterObject(proto, nil, MAX_REUSE_COUNT)
+	return err
 }
 
 // Get the proto type by type name.
@@ -55,18 +56,20 @@ func (b *protoBinder) GetProtoType(name string) (reflect.Type, bool) {
 // @param respProtoName, the response proto name.
 // @return error, error.
 func (b *protoBinder) BindProto(funcName string, reqProtoName string, respProtoName string) error {
-	_, ok := b.mapFuncName2ReqName[funcName]
-	if ok {
-		return ErrProtoBindProtoExist
-	}
+	if reqProtoName != "" {
+		_, ok := b.mapFuncName2ReqName[funcName]
+		if ok {
+			return ErrProtoBindProtoExist
+		}
 
-	_, ok = b.factory.GetReflectType(reqProtoName)
-	if !ok {
-		return ErrProtoBindProtoNotExist
+		_, ok = b.factory.GetReflectType(reqProtoName)
+		if !ok {
+			return ErrProtoBindProtoNotExist
+		}
 	}
 
 	if respProtoName != "" {
-		_, ok = b.mapFuncName2RespName[funcName]
+		_, ok := b.mapFuncName2RespName[funcName]
 		if ok {
 			return ErrProtoBindProtoExist
 		}
@@ -75,11 +78,16 @@ func (b *protoBinder) BindProto(funcName string, reqProtoName string, respProtoN
 		if !ok {
 			return ErrProtoBindProtoNotExist
 		}
+	}
 
+	if reqProtoName != "" {
+		b.mapFuncName2ReqName[funcName] = reqProtoName
+	}
+
+	if respProtoName != "" {
 		b.mapFuncName2RespName[funcName] = respProtoName
 	}
 
-	b.mapFuncName2ReqName[funcName] = reqProtoName
 	return nil
 }
 
@@ -130,7 +138,7 @@ func (b *protoBinder) GetRequest(funcName string) (interface{}, error) {
 // @param mod, the module of the service.
 // @param cmd, the command of the service.
 // @return error, error.
-func (b *protoBinder) ReuseRequest(v yx.Reuseable, funcName string) error {
+func (b *protoBinder) ReuseRequest(v interface{}, funcName string) error {
 	if v == nil {
 		return ErrProtoBindReuseIsNil
 	}
@@ -162,7 +170,7 @@ func (b *protoBinder) GetResponse(funcName string) (interface{}, error) {
 // @param mod, the module of the service.
 // @param cmd, the command of the service.
 // @return error, error.
-func (b *protoBinder) ReuseResponse(v yx.Reuseable, funcName string) error {
+func (b *protoBinder) ReuseResponse(v interface{}, funcName string) error {
 	if v == nil {
 		return ErrProtoBindReuseIsNil
 	}

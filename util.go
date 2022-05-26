@@ -11,3 +11,17 @@ func GetPeerId(peerType uint16, peerNo uint16) uint32 {
 func GetFullFuncName(mark string, funcName string) string {
 	return mark + "." + funcName
 }
+
+func CheckRpcMark(mark []byte, buff []byte) bool {
+	if len(buff) < len(mark) {
+		return false
+	}
+
+	for i, ch := range mark {
+		if ch != buff[i] {
+			return false
+		}
+	}
+
+	return true
+}

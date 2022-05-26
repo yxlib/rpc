@@ -27,7 +27,7 @@ type CliConf struct {
 	MapMark2Peer map[string]*PeerConf `json:"srv_list"`
 }
 
-var CliCfgInst *CliConf = &CliConf{}
+// var CliCfgInst *CliConf = &CliConf{}
 
 //=========================
 //      SrvFuncConf

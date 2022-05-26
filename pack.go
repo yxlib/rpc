@@ -242,24 +242,11 @@ func NewResponse(h *PackHeader) *Response {
 // }
 
 //========================
-//       util method
-//========================
-func CheckRpcMark(mark []byte, buff []byte) bool {
-	if len(buff) < len(mark) {
-		return false
-	}
-
-	for i, ch := range mark {
-		if ch != buff[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-//========================
 //    fetch func list
 //========================
 const RPC_FUNC_NO_FUNC_LIST = uint16(1)
 const RPC_FUNC_NAME_FUNC_LIST = "FetchFuncList"
+
+type FetchFuncListResp struct {
+	MapFuncName2No map[string]uint16 `json:"fl"`
+}

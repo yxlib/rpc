@@ -50,7 +50,7 @@ func NewPeer(net Net, mark string, peerType uint16, peerNo uint16) *Peer {
 		logger: yx.NewLogger("rpc.Peer"),
 	}
 
-	p.net.SetReadMark(mark, peerType, peerNo)
+	p.net.SetReadMark(mark, false, peerType, peerNo)
 	return p
 }
 
@@ -67,24 +67,24 @@ func (p *Peer) Start() {
 }
 
 func (p *Peer) Stop() {
-	// p.net.Close()
-	p.net.RemoveReadMark(p.mark, p.peerType, p.peerNo)
+	p.net.Close()
+	// p.net.RemoveReadMark(p.mark, p.peerType, p.peerNo)
 	p.stopAllRequest()
 }
 
-func (p *Peer) FetchFuncList(cb func([]byte) (map[string]uint16, error)) error {
+func (p *Peer) FetchFuncList(cb func([]byte) (*FetchFuncListResp, error)) error {
 	payload, err := p.callByFuncNo(RPC_FUNC_NO_FUNC_LIST, nil, false)
 	if err != nil {
 		return p.ec.Throw("FetchFuncList", err)
 	}
 
 	if cb != nil {
-		mapFuncName2No, err := cb(payload)
+		resp, err := cb(payload)
 		if err != nil {
 			return p.ec.Throw("FetchFuncList", err)
 		}
 
-		p.mapFuncName2No = mapFuncName2No
+		p.mapFuncName2No = resp.MapFuncName2No
 	}
 
 	return nil
@@ -101,6 +101,15 @@ func (p *Peer) FetchFuncList(cb func([]byte) (map[string]uint16, error)) error {
 
 func (p *Peer) Call(funcName string, params []byte) ([]byte, error) {
 	return p.callByFuncName(funcName, params, false)
+}
+
+func (p *Peer) AsyncCall(funcName string, params []byte, cb func([]byte, error)) {
+	go func() {
+		result, err := p.Call(funcName, params)
+		if cb != nil {
+			cb(result, err)
+		}
+	}()
 }
 
 func (p *Peer) CallNoReturn(funcName string, params []byte) error {

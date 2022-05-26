@@ -6,8 +6,6 @@ package rpc
 
 import (
 	"encoding/json"
-
-	"github.com/yxlib/yx"
 )
 
 type JsonInterceptor struct {
@@ -29,9 +27,8 @@ func (i *JsonInterceptor) OnPreHandle(funcName string, payload []byte) (interfac
 }
 
 func (i *JsonInterceptor) OnHandleCompletion(funcName string, req interface{}, resp interface{}) ([]byte, error) {
-	obj, ok := req.(yx.Reuseable)
-	if ok {
-		ProtoBinder.ReuseRequest(obj, funcName)
+	if req != nil {
+		ProtoBinder.ReuseRequest(req, funcName)
 	}
 
 	payload := []byte(nil)
@@ -40,9 +37,8 @@ func (i *JsonInterceptor) OnHandleCompletion(funcName string, req interface{}, r
 		payload, err = json.Marshal(resp)
 	}
 
-	obj, ok = resp.(yx.Reuseable)
-	if ok {
-		ProtoBinder.ReuseResponse(obj, funcName)
+	if resp != nil {
+		ProtoBinder.ReuseResponse(resp, funcName)
 	}
 
 	return payload, err

@@ -40,8 +40,9 @@ func GenSrvRegisterFileByCfg(srvCfg *SrvConf, regFilePath string, regPackName st
 }
 
 func GenCliRegisterFile(cfgPath string, regFilePath string, regPackName string) {
-	yx.LoadJsonConf(CliCfgInst, cfgPath, nil)
-	GenCliRegisterFileByCfg(CliCfgInst, regFilePath, regPackName)
+	var cliCfg *CliConf = &CliConf{}
+	yx.LoadJsonConf(cliCfg, cfgPath, nil)
+	GenCliRegisterFileByCfg(cliCfg, regFilePath, regPackName)
 }
 
 // Generate the service register file.
