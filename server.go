@@ -38,11 +38,13 @@ type Interceptor interface {
 
 type Server interface {
 	SetMark(mark string)
+	GetRpcNet() Net
 	AddReflectProcessor(processor reflect.Value, funcNo uint16, funcName string) error
 }
 
 type BaseServer struct {
 	mark              string
+	bDebugMode        bool
 	mapFuncNo2Name    map[uint16]string
 	mapFuncNo2Handler map[uint16]reflect.Value
 	inter             Interceptor
@@ -54,6 +56,7 @@ type BaseServer struct {
 func NewBaseServer(net Net) *BaseServer {
 	s := &BaseServer{
 		mark:              "",
+		bDebugMode:        false,
 		mapFuncNo2Name:    make(map[uint16]string),
 		mapFuncNo2Handler: make(map[uint16]reflect.Value),
 		inter:             nil,
@@ -76,6 +79,14 @@ func (s *BaseServer) SetMark(mark string) {
 
 func (s *BaseServer) GetMark() string {
 	return s.mark
+}
+
+func (s *BaseServer) GetRpcNet() Net {
+	return s.net
+}
+
+func (s *BaseServer) SetDebugMode(bDebugMode bool) {
+	s.bDebugMode = bDebugMode
 }
 
 func (s *BaseServer) AddReflectProcessor(processor reflect.Value, funcNo uint16, funcName string) error {
@@ -140,7 +151,9 @@ func (s *BaseServer) readPackLoop() {
 
 		headerLen := h.GetHeaderLen()
 		req := NewSingleFrameRequest(h, data.Payload[headerLen:])
-		s.handleRequest(req, data.PeerType, data.PeerNo)
+		yx.RunDangerCode(func() {
+			s.handleRequest(req, data.PeerType, data.PeerNo)
+		}, s.bDebugMode)
 	}
 }
 
