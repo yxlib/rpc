@@ -43,8 +43,6 @@ type Server interface {
 
 type BaseServer struct {
 	mark              string
-	peerType          uint16
-	peerNo            uint16
 	mapFuncNo2Name    map[uint16]string
 	mapFuncNo2Handler map[uint16]reflect.Value
 	inter             Interceptor
@@ -53,11 +51,9 @@ type BaseServer struct {
 	logger            *yx.Logger
 }
 
-func NewBaseServer(net Net, peerType uint16, peerNo uint16) *BaseServer {
+func NewBaseServer(net Net) *BaseServer {
 	s := &BaseServer{
 		mark:              "",
-		peerType:          peerType,
-		peerNo:            peerNo,
 		mapFuncNo2Name:    make(map[uint16]string),
 		mapFuncNo2Handler: make(map[uint16]reflect.Value),
 		inter:             nil,
