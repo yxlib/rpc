@@ -88,7 +88,7 @@ func NewClient() *Client {
 // 	return nil
 // }
 
-func (c *Client) AddPeer(net Net, mark string, peerType uint16, peerNo uint16, timeoutSec uint32) error {
+func (c *Client) AddPeer(net Net, mark string, peerType uint32, peerNo uint32, timeoutSec uint32) error {
 	// mark, ok := c.mapPeerType2Mark[peerType]
 	// if !ok {
 	// 	return c.ec.Throw("AddPeer", ErrClientPeerCfgNotFound)
@@ -106,11 +106,11 @@ func (c *Client) AddPeer(net Net, mark string, peerType uint16, peerNo uint16, t
 	return nil
 }
 
-func (c *Client) GetPeer(peerType uint16, peerNo uint16) (*Peer, bool) {
+func (c *Client) GetPeer(peerType uint32, peerNo uint32) (*Peer, bool) {
 	return c.getPeer(peerType, peerNo)
 }
 
-func (c *Client) RemovePeer(peerType uint16, peerNo uint16) {
+func (c *Client) RemovePeer(peerType uint32, peerNo uint32) {
 	peer, ok := c.removePeer(peerType, peerNo)
 	if ok {
 		peer.Stop()
@@ -166,7 +166,7 @@ func (c *Client) RemovePeer(peerType uint16, peerNo uint16) {
 // 	return uint32(peerType)<<16 | uint32(peerNo)
 // }
 
-func (c *Client) addPeer(net Net, mark string, peerType uint16, peerNo uint16) (oldPeer *Peer, newPeer *Peer) {
+func (c *Client) addPeer(net Net, mark string, peerType uint32, peerNo uint32) (oldPeer *Peer, newPeer *Peer) {
 	c.lckPeer.Lock()
 	defer c.lckPeer.Unlock()
 
@@ -178,7 +178,7 @@ func (c *Client) addPeer(net Net, mark string, peerType uint16, peerNo uint16) (
 	return oldPeer, peer
 }
 
-func (c *Client) getPeer(peerType uint16, peerNo uint16) (*Peer, bool) {
+func (c *Client) getPeer(peerType uint32, peerNo uint32) (*Peer, bool) {
 	c.lckPeer.Lock()
 	defer c.lckPeer.Unlock()
 
@@ -187,7 +187,7 @@ func (c *Client) getPeer(peerType uint16, peerNo uint16) (*Peer, bool) {
 	return peer, ok
 }
 
-func (c *Client) removePeer(peerType uint16, peerNo uint16) (*Peer, bool) {
+func (c *Client) removePeer(peerType uint32, peerNo uint32) (*Peer, bool) {
 	c.lckPeer.Lock()
 	defer c.lckPeer.Unlock()
 

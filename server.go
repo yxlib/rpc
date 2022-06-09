@@ -18,7 +18,7 @@ var (
 	ErrSrvWrongFormatRet = errors.New("return value format wrong")
 )
 
-type RpcHandler = func(req interface{}, resp interface{}, srcPeerType uint16, srcPeerNo uint16) error
+type RpcHandler = func(req interface{}, resp interface{}, srcPeerType uint32, srcPeerNo uint32) error
 
 type Interceptor interface {
 	// Unmarshal the request payload to interface{}.
@@ -89,6 +89,10 @@ func (s *BaseServer) SetDebugMode(bDebugMode bool) {
 	s.bDebugMode = bDebugMode
 }
 
+func (s *BaseServer) IsDebugMode() bool {
+	return s.bDebugMode
+}
+
 func (s *BaseServer) AddReflectProcessor(processor reflect.Value, funcNo uint16, funcName string) error {
 	var err error = nil
 	defer s.ec.DeferThrow("AddReflectProcessor", &err)
@@ -115,11 +119,11 @@ func (s *BaseServer) Stop() {
 	s.net.Close()
 }
 
-func (s *BaseServer) WritePack(payload []ByteArray, dstPeerType uint16, dstPeerNo uint16) error {
+func (s *BaseServer) WritePack(payload []ByteArray, dstPeerType uint32, dstPeerNo uint32) error {
 	return s.net.WriteRpcPack(payload, dstPeerType, dstPeerNo)
 }
 
-func (s *BaseServer) OnFetchFuncList(req interface{}, resp interface{}, srcPeerType uint16, srcPeerNo uint16) error {
+func (s *BaseServer) OnFetchFuncList(req interface{}, resp interface{}, srcPeerType uint32, srcPeerNo uint32) error {
 	respData := resp.(*FetchFuncListResp)
 	respData.MapFuncName2No = s.getFuncList()
 	return nil
@@ -157,7 +161,7 @@ func (s *BaseServer) readPackLoop() {
 	}
 }
 
-func (s *BaseServer) handleRequest(req *Request, peerType uint16, peerNo uint16) {
+func (s *BaseServer) handleRequest(req *Request, peerType uint32, peerNo uint32) {
 	var err error = nil
 	defer s.ec.Catch("handleRequest", &err)
 

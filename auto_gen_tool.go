@@ -126,17 +126,15 @@ func writeRegFunc(funcConfs []*FuncConf, f *os.File) {
 		f.WriteString("    // " + cfg.FuncName + "\n")
 
 		// request
-		if cfg.Request == "" {
-			println("[Error]    Request can not be empty!!!    ========> ", cfg.FuncName)
-			break
-		}
+		if cfg.Request != "" {
+			reqStr := cfg.Request
+			idx := strings.LastIndex(reqStr, "/")
+			if idx >= 0 {
+				reqStr = reqStr[idx+1:]
+			}
 
-		reqStr := cfg.Request
-		idx := strings.LastIndex(reqStr, "/")
-		if idx >= 0 {
-			reqStr = reqStr[idx+1:]
+			f.WriteString("    rpc.ProtoBinder.RegisterProto(&" + reqStr + "{})\n")
 		}
-		f.WriteString("    rpc.ProtoBinder.RegisterProto(&" + reqStr + "{})\n")
 
 		// response
 		if cfg.Response != "" {

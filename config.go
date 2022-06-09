@@ -18,7 +18,7 @@ type CliFuncConf struct {
 }
 
 type PeerConf struct {
-	PeerType         uint16                  `json:"type"`
+	PeerType         uint32                  `json:"type"`
 	Timeout          uint32                  `json:"timeout_sec"`
 	MapFuncName2Info map[string]*CliFuncConf `json:"func"`
 }

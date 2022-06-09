@@ -4,8 +4,8 @@
 
 package rpc
 
-func GetPeerId(peerType uint16, peerNo uint16) uint32 {
-	return uint32(peerType)<<16 | uint32(peerNo)
+func GetPeerId(peerType uint32, peerNo uint32) uint32 {
+	return peerType<<16 | peerNo
 }
 
 func GetFullFuncName(mark string, funcName string) string {

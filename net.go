@@ -20,12 +20,12 @@ type ByteArray = []byte
 //     NetDataWrap
 //========================
 type NetDataWrap struct {
-	PeerType uint16
-	PeerNo   uint16
+	PeerType uint32
+	PeerNo   uint32
 	Payload  []byte
 }
 
-func NewNetDataWrap(peerType uint16, peerNo uint16, payload []byte) *NetDataWrap {
+func NewNetDataWrap(peerType uint32, peerNo uint32, payload []byte) *NetDataWrap {
 	return &NetDataWrap{
 		Payload:  payload,
 		PeerType: peerType,
@@ -37,12 +37,14 @@ func NewNetDataWrap(peerType uint16, peerNo uint16, payload []byte) *NetDataWrap
 //     Net
 //========================
 type Net interface {
-	SetReadMark(mark string, bSrv bool, srcPeerType uint16, srcPeerNo uint16)
+	SetReadMark(mark string, bSrv bool, srcPeerType uint32, srcPeerNo uint32)
+	GetReadMark() string
+	GetPeerTypeAndNo() (uint32, uint32)
 	// RemoveReadMark(mark string, srcPeerType uint16, srcPeerNo uint16)
 	// GetReadMark(srcPeerType uint16, srcPeerNo uint16) (string, bool)
 	// PushReadPack(peerType uint16, peerNo uint16, payload []byte)
 	ReadRpcPack() (*NetDataWrap, error)
-	WriteRpcPack(payload []ByteArray, dstPeerType uint16, dstPeerNo uint16) error
+	WriteRpcPack(payload []ByteArray, dstPeerType uint32, dstPeerNo uint32) error
 	Close()
 }
 
@@ -53,8 +55,8 @@ type BaseNet struct {
 	// mapPeerId2Mark map[uint32]string
 	mark        string
 	bSrv        bool
-	srcPeerType uint16
-	srcPeerNo   uint16
+	srcPeerType uint32
+	srcPeerNo   uint32
 	chanPacks   chan *NetDataWrap
 	logger      *yx.Logger
 	ec          *yx.ErrCatcher
@@ -74,7 +76,7 @@ func NewBaseNet(maxReadQue uint32) *BaseNet {
 }
 
 // rpc.Net
-func (n *BaseNet) SetReadMark(mark string, bSrv bool, srcPeerType uint16, srcPeerNo uint16) {
+func (n *BaseNet) SetReadMark(mark string, bSrv bool, srcPeerType uint32, srcPeerNo uint32) {
 	n.mark = mark
 	n.bSrv = bSrv
 	n.srcPeerType = srcPeerType
@@ -86,6 +88,14 @@ func (n *BaseNet) SetReadMark(mark string, bSrv bool, srcPeerType uint16, srcPee
 	// }
 
 	// n.mapPeerId2Mark[peerId] = mark
+}
+
+func (n *BaseNet) GetReadMark() string {
+	return n.mark
+}
+
+func (n *BaseNet) GetPeerTypeAndNo() (uint32, uint32) {
+	return n.srcPeerType, n.srcPeerNo
 }
 
 func (n *BaseNet) IsSrvNet() bool {
@@ -106,7 +116,7 @@ func (n *BaseNet) IsSrvNet() bool {
 // 	return mark, ok
 // }
 
-func (n *BaseNet) PushReadPack(peerType uint16, peerNo uint16, payload []byte) {
+func (n *BaseNet) AddReadPack(peerType uint32, peerNo uint32, payload []byte) {
 	pack := NewNetDataWrap(peerType, peerNo, payload)
 	n.chanPacks <- pack
 }
@@ -120,7 +130,7 @@ func (n *BaseNet) ReadRpcPack() (*NetDataWrap, error) {
 	return pack, nil
 }
 
-func (n *BaseNet) WriteRpcPack(payload []ByteArray, dstPeerType uint16, dstPeerNo uint16) error {
+func (n *BaseNet) WriteRpcPack(payload []ByteArray, dstPeerType uint32, dstPeerNo uint32) error {
 	return nil
 }
 

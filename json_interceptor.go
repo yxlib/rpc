@@ -13,13 +13,11 @@ type JsonInterceptor struct {
 
 func (i *JsonInterceptor) OnPreHandle(funcName string, payload []byte) (interface{}, interface{}, error) {
 	reqData, err := ProtoBinder.GetRequest(funcName)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = json.Unmarshal(payload, reqData)
-	if err != nil {
-		return nil, nil, err
+	if err == nil {
+		err = json.Unmarshal(payload, reqData)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	respData, _ := ProtoBinder.GetResponse(funcName)

@@ -49,7 +49,7 @@ func (p *PackHeader) Marshal() ([]byte, error) {
 	defer p.ec.DeferThrow("Marshal", &err)
 
 	headerLen := p.GetHeaderLen()
-	buff := make([]byte, headerLen)
+	buff := make([]byte, 0, headerLen)
 	buffWrap := bytes.NewBuffer(buff)
 
 	// ====== head

@@ -41,7 +41,7 @@ func (b *builder) BuildSrv(srv Server, cfg *SrvConf) {
 
 		// handler
 		m := v.MethodByName(funcCfg.Handler)
-		err = srv.AddReflectProcessor(m, funcCfg.FuncNo, fullFuncName)
+		err = srv.AddReflectProcessor(m, funcCfg.FuncNo, funcName)
 		if err != nil {
 			b.logger.E("AddReflectProcessor err: ", err)
 			b.logger.W("not support func ", fullFuncName)

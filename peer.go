@@ -20,8 +20,8 @@ var (
 type Peer struct {
 	net            Net
 	mark           string
-	peerType       uint16
-	peerNo         uint16
+	peerType       uint32
+	peerNo         uint32
 	mapFuncName2No map[string]uint16
 	timeoutSec     uint32
 
@@ -33,7 +33,7 @@ type Peer struct {
 	logger *yx.Logger
 }
 
-func NewPeer(net Net, mark string, peerType uint16, peerNo uint16) *Peer {
+func NewPeer(net Net, mark string, peerType uint32, peerNo uint32) *Peer {
 	p := &Peer{
 		net:            net,
 		mark:           mark,
@@ -211,6 +211,8 @@ func (p *Peer) addRequest(funcNo uint16, params []byte) (*Request, []ByteArray, 
 	payload := make([]ByteArray, 0, 2)
 	if len(params) > 0 {
 		payload = append(payload, headerData, params)
+	} else {
+		payload = append(payload, headerData)
 	}
 
 	p.maxSerialNo++
