@@ -213,7 +213,8 @@ func (r *Request) GetResponseData() []byte {
 }
 
 func (r *Request) Cancel() {
-	close(r.evt.C)
+	// close(r.evt.C)
+	r.evt.Close()
 }
 
 //========================
