@@ -40,9 +40,8 @@ type Net interface {
 	SetReadMark(mark string, bSrv bool, srcPeerType uint32, srcPeerNo uint32)
 	GetReadMark() string
 	GetPeerTypeAndNo() (uint32, uint32)
-	// RemoveReadMark(mark string, srcPeerType uint16, srcPeerNo uint16)
-	// GetReadMark(srcPeerType uint16, srcPeerNo uint16) (string, bool)
-	// PushReadPack(peerType uint16, peerNo uint16, payload []byte)
+	IsSrvNet() bool
+	AddReadPack(peerType uint32, peerNo uint32, payload []byte)
 	ReadRpcPack() (*NetDataWrap, error)
 	WriteRpcPack(payload []ByteArray, dstPeerType uint32, dstPeerNo uint32) error
 	Close()
