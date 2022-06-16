@@ -122,7 +122,8 @@ func (s *BaseServer) Stop() {
 }
 
 func (s *BaseServer) WritePack(payload []ByteArray, dstPeerType uint32, dstPeerNo uint32) error {
-	return s.net.WriteRpcPack(payload, dstPeerType, dstPeerNo)
+	err := s.net.WriteRpcPack(payload, dstPeerType, dstPeerNo)
+	return s.ec.Throw("WritePack", err)
 }
 
 func (s *BaseServer) OnFetchFuncList(req interface{}, resp interface{}, srcPeerType uint32, srcPeerNo uint32) error {

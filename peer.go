@@ -100,7 +100,8 @@ func (p *Peer) FetchFuncList(cb func([]byte) (*FetchFuncListResp, error)) error 
 }
 
 func (p *Peer) Call(funcName string, params []byte) ([]byte, error) {
-	return p.callByFuncName(funcName, params, false)
+	buff, err := p.callByFuncName(funcName, params, false)
+	return buff, p.ec.Throw("Call", err)
 }
 
 func (p *Peer) AsyncCall(funcName string, params []byte, cb func([]byte, error)) {
@@ -114,7 +115,7 @@ func (p *Peer) AsyncCall(funcName string, params []byte, cb func([]byte, error))
 
 func (p *Peer) CallNoReturn(funcName string, params []byte) error {
 	_, err := p.callByFuncName(funcName, params, true)
-	return err
+	return p.ec.Throw("CallNoReturn", err)
 }
 
 func (p *Peer) callByFuncName(funcName string, params []byte, bNoReturn bool) ([]byte, error) {
@@ -175,7 +176,7 @@ func (p *Peer) callByFuncNo(funcNo uint16, params []byte, bNoReturn bool) ([]byt
 
 func (p *Peer) callNoReturnImpl(funcNo uint16, params []byte) error {
 	var err error = nil
-	defer p.ec.DeferThrow("CallNoReturn", &err)
+	defer p.ec.DeferThrow("callNoReturnImpl", &err)
 
 	h := NewPackHeader([]byte(p.mark), 0, funcNo)
 	headerData, err := h.Marshal()
@@ -204,7 +205,7 @@ func (p *Peer) addRequest(funcNo uint16, params []byte) (*Request, []ByteArray, 
 	h := NewPackHeader([]byte(p.mark), sno, funcNo)
 	headerData, err := h.Marshal()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, p.ec.Throw("addRequest", err)
 	}
 
 	req := NewSingleFrameRequest(h, params)

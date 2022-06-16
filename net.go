@@ -123,7 +123,7 @@ func (n *BaseNet) AddReadPack(peerType uint32, peerNo uint32, payload []byte) {
 func (n *BaseNet) ReadRpcPack() (*NetDataWrap, error) {
 	pack, ok := <-n.chanPacks
 	if !ok {
-		return nil, ErrNetReadChanClose
+		return nil, n.ec.Throw("ReadRpcPack", ErrNetReadChanClose)
 	}
 
 	return pack, nil
