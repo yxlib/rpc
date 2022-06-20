@@ -39,6 +39,7 @@ type Interceptor interface {
 type Server interface {
 	SetMark(mark string)
 	GetRpcNet() Net
+	SetDebugMode(bDebugMode bool)
 	AddReflectProcessor(processor reflect.Value, funcNo uint16, funcName string) error
 	Start()
 	Stop()
