@@ -168,6 +168,15 @@ func (p *Pack) AddFrame(frame []byte) error {
 	return nil
 }
 
+func (p *Pack) AddFrames(frames []ByteArray) error {
+	if nil == frames {
+		return p.ec.Throw("AddFrames", ErrPackFrameIsNil)
+	}
+
+	p.Payload = append(p.Payload, frames...)
+	return nil
+}
+
 //========================
 //       Request
 //========================

@@ -99,12 +99,12 @@ func (p *Peer) FetchFuncList(cb func([]byte) (*FetchFuncListResp, error)) error 
 	// return nil
 }
 
-func (p *Peer) Call(funcName string, params []byte) ([]byte, error) {
+func (p *Peer) Call(funcName string, params []ByteArray) ([]byte, error) {
 	buff, err := p.callByFuncName(funcName, params, false)
 	return buff, p.ec.Throw("Call", err)
 }
 
-func (p *Peer) AsyncCall(funcName string, params []byte, cb func([]byte, error)) {
+func (p *Peer) AsyncCall(funcName string, params []ByteArray, cb func([]byte, error)) {
 	go func() {
 		result, err := p.Call(funcName, params)
 		if cb != nil {
@@ -113,12 +113,12 @@ func (p *Peer) AsyncCall(funcName string, params []byte, cb func([]byte, error))
 	}()
 }
 
-func (p *Peer) CallNoReturn(funcName string, params []byte) error {
+func (p *Peer) CallNoReturn(funcName string, params []ByteArray) error {
 	_, err := p.callByFuncName(funcName, params, true)
 	return p.ec.Throw("CallNoReturn", err)
 }
 
-func (p *Peer) callByFuncName(funcName string, params []byte, bNoReturn bool) ([]byte, error) {
+func (p *Peer) callByFuncName(funcName string, params []ByteArray, bNoReturn bool) ([]byte, error) {
 	funcNo, ok := p.mapFuncName2No[funcName]
 	if !ok {
 		return nil, p.ec.Throw("Call", ErrPeerNotSupportFunc)
@@ -128,7 +128,7 @@ func (p *Peer) callByFuncName(funcName string, params []byte, bNoReturn bool) ([
 	return payload, p.ec.Throw("Call", err)
 }
 
-func (p *Peer) callByFuncNo(funcNo uint16, params []byte, bNoReturn bool) ([]byte, error) {
+func (p *Peer) callByFuncNo(funcNo uint16, params []ByteArray, bNoReturn bool) ([]byte, error) {
 	var err error = nil
 	defer p.ec.DeferThrow("callByFuncNo", &err)
 
@@ -174,7 +174,7 @@ func (p *Peer) callByFuncNo(funcNo uint16, params []byte, bNoReturn bool) ([]byt
 	return req.respPayload, nil
 }
 
-func (p *Peer) callNoReturnImpl(funcNo uint16, params []byte) error {
+func (p *Peer) callNoReturnImpl(funcNo uint16, params []ByteArray) error {
 	var err error = nil
 	defer p.ec.DeferThrow("callNoReturnImpl", &err)
 
@@ -184,9 +184,10 @@ func (p *Peer) callNoReturnImpl(funcNo uint16, params []byte) error {
 		return err
 	}
 
-	payload := make([]ByteArray, 0, 2)
+	payload := make([]ByteArray, 0)
+	payload = append(payload, headerData)
 	if len(params) > 0 {
-		payload = append(payload, headerData, params)
+		payload = append(payload, params...)
 	}
 
 	err = p.net.WriteRpcPack(payload, p.peerType, p.peerNo)
@@ -197,7 +198,7 @@ func (p *Peer) callNoReturnImpl(funcNo uint16, params []byte) error {
 // 	p.resetCurRequest()
 // }
 
-func (p *Peer) addRequest(funcNo uint16, params []byte) (*Request, []ByteArray, error) {
+func (p *Peer) addRequest(funcNo uint16, params []ByteArray) (*Request, []ByteArray, error) {
 	p.lckRequests.Lock()
 	defer p.lckRequests.Unlock()
 
@@ -208,12 +209,13 @@ func (p *Peer) addRequest(funcNo uint16, params []byte) (*Request, []ByteArray, 
 		return nil, nil, p.ec.Throw("addRequest", err)
 	}
 
-	req := NewSingleFrameRequest(h, params)
-	payload := make([]ByteArray, 0, 2)
+	req := NewRequest(h)
+	req.AddFrames(params)
+
+	payload := make([]ByteArray, 0)
+	payload = append(payload, headerData)
 	if len(params) > 0 {
-		payload = append(payload, headerData, params)
-	} else {
-		payload = append(payload, headerData)
+		payload = append(payload, params...)
 	}
 
 	p.maxSerialNo++
