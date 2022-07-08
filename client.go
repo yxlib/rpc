@@ -27,7 +27,7 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) AddPeer(net Net, mark string, peerType uint32, peerNo uint32, timeoutSec uint32) error {
+func (c *Client) AddPeer(net Net, mark string, peerType uint32, peerNo uint32, timeoutSec uint32) (*Peer, error) {
 	oldPeer, newPeer := c.addPeer(net, mark, peerType, peerNo)
 	if oldPeer != nil {
 		oldPeer.Stop()
@@ -35,7 +35,7 @@ func (c *Client) AddPeer(net Net, mark string, peerType uint32, peerNo uint32, t
 
 	newPeer.SetTimeout(timeoutSec)
 	go newPeer.Start()
-	return nil
+	return newPeer, nil
 }
 
 func (c *Client) GetPeer(peerType uint32, peerNo uint32) (*Peer, bool) {
