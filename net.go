@@ -37,13 +37,13 @@ func NewNetDataWrap(peerType uint32, peerNo uint32, payload []byte) *NetDataWrap
 //     Net
 //========================
 type Net interface {
-	SetReadMark(mark string, bSrv bool, srcPeerType uint32, srcPeerNo uint32)
-	GetReadMark() string
+	SetService(service string, bServer bool, srcPeerType uint32, srcPeerNo uint32)
+	GetService() string
 	GetPeerTypeAndNo() (uint32, uint32)
-	IsSrvNet() bool
+	IsServerNet() bool
 	AddReadPack(peerType uint32, peerNo uint32, payload []byte)
 	ReadRpcPack() (*NetDataWrap, error)
-	WriteRpcPack(payload []ByteArray, dstPeerType uint32, dstPeerNo uint32) error
+	WriteRpcPack(dstPeerType uint32, dstPeerNo uint32, payload ...[]byte) error
 	Close()
 }
 
@@ -52,7 +52,7 @@ type Net interface {
 //========================
 type BaseNet struct {
 	// mapPeerId2Mark map[uint32]string
-	mark        string
+	service     string
 	bSrv        bool
 	srcPeerType uint32
 	srcPeerNo   uint32
@@ -64,7 +64,7 @@ type BaseNet struct {
 func NewBaseNet(maxReadQue uint32) *BaseNet {
 	return &BaseNet{
 		// mapPeerId2Mark: make(map[uint32]string),
-		mark:        "",
+		service:     "",
 		bSrv:        false,
 		srcPeerType: 0,
 		srcPeerNo:   0,
@@ -75,9 +75,9 @@ func NewBaseNet(maxReadQue uint32) *BaseNet {
 }
 
 // rpc.Net
-func (n *BaseNet) SetReadMark(mark string, bSrv bool, srcPeerType uint32, srcPeerNo uint32) {
-	n.mark = mark
-	n.bSrv = bSrv
+func (n *BaseNet) SetService(service string, bServer bool, srcPeerType uint32, srcPeerNo uint32) {
+	n.service = service
+	n.bSrv = bServer
 	n.srcPeerType = srcPeerType
 	n.srcPeerNo = srcPeerNo
 	// peerId := GetPeerId(srcPeerType, srcPeerNo)
@@ -89,15 +89,15 @@ func (n *BaseNet) SetReadMark(mark string, bSrv bool, srcPeerType uint32, srcPee
 	// n.mapPeerId2Mark[peerId] = mark
 }
 
-func (n *BaseNet) GetReadMark() string {
-	return n.mark
+func (n *BaseNet) GetService() string {
+	return n.service
 }
 
 func (n *BaseNet) GetPeerTypeAndNo() (uint32, uint32) {
 	return n.srcPeerType, n.srcPeerNo
 }
 
-func (n *BaseNet) IsSrvNet() bool {
+func (n *BaseNet) IsServerNet() bool {
 	return n.bSrv
 }
 
@@ -129,7 +129,7 @@ func (n *BaseNet) ReadRpcPack() (*NetDataWrap, error) {
 	return pack, nil
 }
 
-func (n *BaseNet) WriteRpcPack(payload []ByteArray, dstPeerType uint32, dstPeerNo uint32) error {
+func (n *BaseNet) WriteRpcPack(dstPeerType uint32, dstPeerNo uint32, payload ...[]byte) error {
 	return nil
 }
 

@@ -8,8 +8,8 @@ func GetPeerId(peerType uint32, peerNo uint32) uint32 {
 	return peerType<<16 | peerNo
 }
 
-func GetFullFuncName(mark string, funcName string) string {
-	return mark + "." + funcName
+func GetFullFuncName(serviceName string, funcName string) string {
+	return serviceName + "." + funcName
 }
 
 func CheckRpcMark(mark []byte, buff []byte) bool {

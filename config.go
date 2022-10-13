@@ -37,9 +37,14 @@ type SrvFuncConf struct {
 	Handler string `json:"handler"`
 }
 
-type SrvConf struct {
-	Mark             string                  `json:"mark"`
+type ServiceConf struct {
+	Net              string                  `json:"net"`
+	Name             string                  `json:"name"`
 	MapFuncName2Info map[string]*SrvFuncConf `json:"func"`
+}
+
+type SrvConf struct {
+	Services []*ServiceConf `json:"services"`
 }
 
 var SrvConfInst *SrvConf = &SrvConf{}

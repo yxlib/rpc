@@ -30,11 +30,14 @@ func GenSrvRegisterFileByCfg(srvCfg *SrvConf, regFilePath string, regPackName st
 
 	writePackage(f, regPackName)
 
-	funcConfs := make([]*FuncConf, 0, len(srvCfg.MapFuncName2Info))
-	for funcName, cfg := range srvCfg.MapFuncName2Info {
-		cfg.FuncName = funcName
-		funcConfs = append(funcConfs, cfg.FuncConf)
+	funcConfs := make([]*FuncConf, 0)
+	for _, serviceCfg := range srvCfg.Services {
+		for funcName, cfg := range serviceCfg.MapFuncName2Info {
+			cfg.FuncName = funcName
+			funcConfs = append(funcConfs, cfg.FuncConf)
+		}
 	}
+
 	writeImport(funcConfs, regPackName, f)
 	writeRegFunc(funcConfs, f)
 }

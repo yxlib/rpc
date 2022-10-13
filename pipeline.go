@@ -12,18 +12,25 @@ import (
 )
 
 var (
-	ErrPeerNotSupportFunc = errors.New("not support this func")
-	ErrPeerNetNil         = errors.New("rpc net is nil")
-	ErrPeerForceCallStop  = errors.New("force call stop")
+	ErrPipelineNotSupportFunc = errors.New("not support this func")
+	ErrPipelineInterNil       = errors.New("interceptor is nil")
+	ErrPipelineNetNil         = errors.New("rpc net is nil")
+	ErrPipelineForceCallStop  = errors.New("force call stop")
 )
 
-type Peer struct {
+type PipelineInterceptor interface {
+	OnMarshalRequest(funcName string, reqObj interface{}) ([]byte, error)
+	OnUnmarshalResponse(funcName string, respData []byte, respObj interface{}) error
+}
+
+type Pipeline struct {
 	net            Net
-	mark           string
+	service        string
 	peerType       uint32
 	peerNo         uint32
 	mapFuncName2No map[string]uint16
 	timeoutSec     uint32
+	inter          PipelineInterceptor
 
 	maxSerialNo uint16
 	mapSno2Req  map[uint16]*Request
@@ -33,60 +40,68 @@ type Peer struct {
 	logger *yx.Logger
 }
 
-func NewPeer(net Net, mark string, peerType uint32, peerNo uint32) *Peer {
-	p := &Peer{
+func NewPipeline(net Net, peerType uint32, peerNo uint32, service string) *Pipeline {
+	p := &Pipeline{
 		net:            net,
-		mark:           mark,
+		service:        service,
 		peerType:       peerType,
 		peerNo:         peerNo,
 		mapFuncName2No: make(map[string]uint16),
 		timeoutSec:     0,
+		inter:          nil,
 
 		maxSerialNo: 0,
 		mapSno2Req:  make(map[uint16]*Request),
 		lckRequests: &sync.Mutex{},
 
-		ec:     yx.NewErrCatcher("rpc.Peer"),
-		logger: yx.NewLogger("rpc.Peer"),
+		ec:     yx.NewErrCatcher("rpc.Pipeline"),
+		logger: yx.NewLogger("rpc.Pipeline"),
 	}
 
-	p.net.SetReadMark(mark, false, peerType, peerNo)
+	p.net.SetService(p.service, false, peerType, peerNo)
 	return p
 }
 
-func (p *Peer) GetMark() string {
-	return p.mark
+func (p *Pipeline) GetService() string {
+	return p.service
 }
 
-func (p *Peer) SetTimeout(timeoutSec uint32) {
+func (p *Pipeline) SetInterceptor(inter PipelineInterceptor) {
+	p.inter = inter
+}
+
+func (p *Pipeline) SetTimeout(timeoutSec uint32) {
 	p.timeoutSec = timeoutSec
 }
 
-func (p *Peer) Start() {
+func (p *Pipeline) Start() {
 	p.readPackLoop()
 }
 
-func (p *Peer) Stop() {
+func (p *Pipeline) Stop() {
 	p.net.Close()
 	// p.net.RemoveReadMark(p.mark, p.peerType, p.peerNo)
 	p.stopAllRequest()
 }
 
-func (p *Peer) FetchFuncList(cb func([]byte) (*FetchFuncListResp, error)) error {
+func (p *Pipeline) FetchFuncList() error {
+	if p.inter == nil {
+		return p.ec.Throw("FetchFuncList", ErrPipelineInterNil)
+	}
+
 	payload, err := p.callByFuncNo(RPC_FUNC_NO_FUNC_LIST, nil, false)
 	if err != nil {
 		return p.ec.Throw("FetchFuncList", err)
 	}
 
-	if cb != nil {
-		resp, err := cb(payload)
-		if err != nil {
-			return p.ec.Throw("FetchFuncList", err)
-		}
-
-		p.mapFuncName2No = resp.MapFuncName2No
+	resp := &FetchFuncListResp{}
+	fullFuncName := GetFullFuncName(p.service, RPC_FUNC_NAME_FUNC_LIST)
+	err = p.inter.OnUnmarshalResponse(fullFuncName, payload, resp)
+	if err != nil {
+		return p.ec.Throw("FetchFuncList", err)
 	}
 
+	p.mapFuncName2No = resp.MapFuncName2No
 	return nil
 
 	// resp := &FuncListResp{}
@@ -99,41 +114,91 @@ func (p *Peer) FetchFuncList(cb func([]byte) (*FetchFuncListResp, error)) error 
 	// return nil
 }
 
-func (p *Peer) Call(funcName string, params []ByteArray) ([]byte, error) {
-	buff, err := p.callByFuncName(funcName, params, false)
-	return buff, p.ec.Throw("Call", err)
-}
-
-func (p *Peer) AsyncCall(funcName string, params []ByteArray, cb func([]byte, error)) {
-	go func() {
-		result, err := p.Call(funcName, params)
+func (p *Pipeline) AsyncFetchFuncList(cb func(error)) {
+	if p.inter == nil {
 		if cb != nil {
-			cb(result, err)
+			cb(ErrPipelineInterNil)
+		}
+
+		return
+	}
+
+	go func() {
+		err := p.FetchFuncList()
+		if cb != nil {
+			cb(err)
 		}
 	}()
 }
 
-func (p *Peer) CallNoReturn(funcName string, params []ByteArray) error {
-	_, err := p.callByFuncName(funcName, params, true)
+func (p *Pipeline) Call(funcName string, reqObj interface{}, respObj interface{}) error {
+	if p.inter == nil {
+		return p.ec.Throw("Call", ErrPipelineInterNil)
+	}
+
+	fullFuncName := GetFullFuncName(p.service, funcName)
+	params, err := p.inter.OnMarshalRequest(fullFuncName, reqObj)
+	if err != nil {
+		return p.ec.Throw("Call", err)
+	}
+
+	buff, err := p.callByFuncName(funcName, params, false)
+	if err != nil {
+		return p.ec.Throw("Call", err)
+	}
+
+	err = p.inter.OnUnmarshalResponse(fullFuncName, buff, respObj)
+	return p.ec.Throw("Call", err)
+}
+
+func (p *Pipeline) AsyncCall(cb func(interface{}, error), funcName string, reqObj interface{}, respObj interface{}) {
+	if p.inter == nil {
+		if cb != nil {
+			cb(nil, ErrPipelineInterNil)
+		}
+
+		return
+	}
+
+	go func() {
+		err := p.Call(funcName, reqObj, respObj)
+		if cb != nil {
+			cb(respObj, err)
+		}
+	}()
+}
+
+func (p *Pipeline) CallNoReturn(funcName string, reqObj interface{}) error {
+	if p.inter == nil {
+		return p.ec.Throw("CallNoReturn", ErrPipelineInterNil)
+	}
+
+	fullFuncName := GetFullFuncName(p.service, funcName)
+	params, err := p.inter.OnMarshalRequest(fullFuncName, reqObj)
+	if err != nil {
+		return p.ec.Throw("CallNoReturn", err)
+	}
+
+	_, err = p.callByFuncName(funcName, params, true)
 	return p.ec.Throw("CallNoReturn", err)
 }
 
-func (p *Peer) callByFuncName(funcName string, params []ByteArray, bNoReturn bool) ([]byte, error) {
+func (p *Pipeline) callByFuncName(funcName string, params []byte, bNoReturn bool) ([]byte, error) {
 	funcNo, ok := p.mapFuncName2No[funcName]
 	if !ok {
-		return nil, p.ec.Throw("Call", ErrPeerNotSupportFunc)
+		return nil, p.ec.Throw("Call", ErrPipelineNotSupportFunc)
 	}
 
 	payload, err := p.callByFuncNo(funcNo, params, bNoReturn)
 	return payload, p.ec.Throw("Call", err)
 }
 
-func (p *Peer) callByFuncNo(funcNo uint16, params []ByteArray, bNoReturn bool) ([]byte, error) {
+func (p *Pipeline) callByFuncNo(funcNo uint16, params []byte, bNoReturn bool) ([]byte, error) {
 	var err error = nil
 	defer p.ec.DeferThrow("callByFuncNo", &err)
 
 	if p.net == nil {
-		err = ErrPeerNetNil
+		err = ErrPipelineNetNil
 		return nil, err
 	}
 
@@ -151,7 +216,7 @@ func (p *Peer) callByFuncNo(funcNo uint16, params []ByteArray, bNoReturn bool) (
 	defer p.stopRequest(req.Header.SerialNo)
 
 	// send
-	err = p.net.WriteRpcPack(payload, p.peerType, p.peerNo)
+	err = p.net.WriteRpcPack(p.peerType, p.peerNo, payload...)
 	if err != nil {
 		return nil, err
 	}
@@ -167,18 +232,18 @@ func (p *Peer) callByFuncNo(funcNo uint16, params []ByteArray, bNoReturn bool) (
 	// get response
 	_, ok := p.getRequest(req.Header.SerialNo)
 	if !ok {
-		err = ErrPeerForceCallStop
+		err = ErrPipelineForceCallStop
 		return nil, err
 	}
 
 	return req.respPayload, nil
 }
 
-func (p *Peer) callNoReturnImpl(funcNo uint16, params []ByteArray) error {
+func (p *Pipeline) callNoReturnImpl(funcNo uint16, params []byte) error {
 	var err error = nil
 	defer p.ec.DeferThrow("callNoReturnImpl", &err)
 
-	h := NewPackHeader([]byte(p.mark), 0, funcNo)
+	h := NewPackHeader(p.service, 0, funcNo)
 	headerData, err := h.Marshal()
 	if err != nil {
 		return err
@@ -187,10 +252,10 @@ func (p *Peer) callNoReturnImpl(funcNo uint16, params []ByteArray) error {
 	payload := make([]ByteArray, 0)
 	payload = append(payload, headerData)
 	if len(params) > 0 {
-		payload = append(payload, params...)
+		payload = append(payload, params)
 	}
 
-	err = p.net.WriteRpcPack(payload, p.peerType, p.peerNo)
+	err = p.net.WriteRpcPack(p.peerType, p.peerNo, payload...)
 	return err
 }
 
@@ -198,24 +263,24 @@ func (p *Peer) callNoReturnImpl(funcNo uint16, params []ByteArray) error {
 // 	p.resetCurRequest()
 // }
 
-func (p *Peer) addRequest(funcNo uint16, params []ByteArray) (*Request, []ByteArray, error) {
+func (p *Pipeline) addRequest(funcNo uint16, params []byte) (*Request, []ByteArray, error) {
 	p.lckRequests.Lock()
 	defer p.lckRequests.Unlock()
 
 	sno := p.maxSerialNo + 1
-	h := NewPackHeader([]byte(p.mark), sno, funcNo)
+	h := NewPackHeader(p.service, sno, funcNo)
 	headerData, err := h.Marshal()
 	if err != nil {
 		return nil, nil, p.ec.Throw("addRequest", err)
 	}
 
 	req := NewRequest(h)
-	req.AddFrames(params)
+	req.AddFrame(params)
 
 	payload := make([]ByteArray, 0)
 	payload = append(payload, headerData)
 	if len(params) > 0 {
-		payload = append(payload, params...)
+		payload = append(payload, params)
 	}
 
 	p.maxSerialNo++
@@ -223,7 +288,7 @@ func (p *Peer) addRequest(funcNo uint16, params []ByteArray) (*Request, []ByteAr
 	return req, payload, nil
 }
 
-func (p *Peer) stopRequest(sno uint16) {
+func (p *Pipeline) stopRequest(sno uint16) {
 	p.lckRequests.Lock()
 	defer p.lckRequests.Unlock()
 
@@ -234,7 +299,7 @@ func (p *Peer) stopRequest(sno uint16) {
 	}
 }
 
-func (p *Peer) stopAllRequest() {
+func (p *Pipeline) stopAllRequest() {
 	p.lckRequests.Lock()
 	defer p.lckRequests.Unlock()
 
@@ -245,7 +310,7 @@ func (p *Peer) stopAllRequest() {
 	p.mapSno2Req = make(map[uint16]*Request)
 }
 
-func (p *Peer) getRequest(sno uint16) (*Request, bool) {
+func (p *Pipeline) getRequest(sno uint16) (*Request, bool) {
 	p.lckRequests.Lock()
 	defer p.lckRequests.Unlock()
 
@@ -253,7 +318,7 @@ func (p *Peer) getRequest(sno uint16) (*Request, bool) {
 	return req, ok
 }
 
-func (p *Peer) wait(req *Request) error {
+func (p *Pipeline) wait(req *Request) error {
 	var err error = nil
 	if p.timeoutSec == 0 {
 		err = req.Wait()
@@ -269,14 +334,14 @@ func (p *Peer) wait(req *Request) error {
 	return nil
 }
 
-func (p *Peer) readPackLoop() {
+func (p *Pipeline) readPackLoop() {
 	for {
 		data, err := p.net.ReadRpcPack()
 		if err != nil {
 			break
 		}
 
-		h := NewPackHeader([]byte(p.mark), 0, 0)
+		h := NewPackHeader(p.service, 0, 0)
 		err = h.Unmarshal(data.Payload)
 		if err != nil {
 			p.ec.Catch("readPackLoop", &err)
@@ -288,7 +353,7 @@ func (p *Peer) readPackLoop() {
 	}
 }
 
-func (p *Peer) handlePack(serialNo uint16, funcNo uint16, payload []byte) {
+func (p *Pipeline) handlePack(serialNo uint16, funcNo uint16, payload []byte) {
 	req, ok := p.getRequest(serialNo)
 	if !ok {
 		return

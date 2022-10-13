@@ -18,35 +18,48 @@ var Builder = &builder{
 	logger: yx.NewLogger("rpc.Builder"),
 }
 
-func (b *builder) BuildSrv(srv Server, cfg *SrvConf) {
-	v := reflect.ValueOf(srv)
-	srv.SetMark(cfg.Mark)
+func (b *builder) BuildSrv(srvCfg *SrvConf) {
+	objFactory := Server.GetObjectFactory()
 
-	funcNo := uint16(RPC_FUNC_NO_FUNC_LIST)
-	for funcName, funcCfg := range cfg.MapFuncName2Info {
-		if funcName == RPC_FUNC_NAME_FUNC_LIST {
-			funcCfg.FuncNo = RPC_FUNC_NO_FUNC_LIST
-		} else {
-			funcNo++
-			funcCfg.FuncNo = funcNo
-		}
-
-		// proto
-		fullFuncName := GetFullFuncName(cfg.Mark, funcName)
-		err := ProtoBinder.BindProto(fullFuncName, funcCfg.Request, funcCfg.Response)
+	for _, cfg := range srvCfg.Services {
+		net, err := objFactory.CreateObject(cfg.Net)
 		if err != nil {
-			b.logger.W("not support func ", fullFuncName)
+			b.logger.W("net object not register", cfg.Net)
 			continue
 		}
 
-		// handler
-		m := v.MethodByName(funcCfg.Handler)
-		err = srv.AddReflectProcessor(m, funcCfg.FuncNo, funcName)
-		if err != nil {
-			b.logger.E("AddReflectProcessor err: ", err)
-			b.logger.W("not support func ", fullFuncName)
-			continue
+		srv := NewBaseService(net.(Net), cfg.Name)
+		v := reflect.ValueOf(srv)
+		// srv.SetMark(cfg.Mark)
+
+		funcNo := uint16(RPC_FUNC_NO_FUNC_LIST)
+		for funcName, funcCfg := range cfg.MapFuncName2Info {
+			if funcName == RPC_FUNC_NAME_FUNC_LIST {
+				funcCfg.FuncNo = RPC_FUNC_NO_FUNC_LIST
+			} else {
+				funcNo++
+				funcCfg.FuncNo = funcNo
+			}
+
+			// proto
+			fullFuncName := GetFullFuncName(cfg.Name, funcName)
+			err := ProtoBinder.BindProto(fullFuncName, funcCfg.Request, funcCfg.Response)
+			if err != nil {
+				b.logger.W("not support func ", fullFuncName)
+				continue
+			}
+
+			// handler
+			m := v.MethodByName(funcCfg.Handler)
+			err = srv.AddReflectProcessor(m, funcCfg.FuncNo, funcName)
+			if err != nil {
+				b.logger.E("AddReflectProcessor err: ", err)
+				b.logger.W("not support func ", fullFuncName)
+				continue
+			}
 		}
+
+		Server.AddService(srv)
 	}
 }
 

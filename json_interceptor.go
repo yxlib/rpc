@@ -8,10 +8,10 @@ import (
 	"encoding/json"
 )
 
-type JsonInterceptor struct {
+type JsonServInterceptor struct {
 }
 
-func (i *JsonInterceptor) OnPreHandle(funcName string, payload []byte) (interface{}, interface{}, error) {
+func (i *JsonServInterceptor) OnPreHandle(funcName string, payload []byte) (interface{}, interface{}, error) {
 	reqData, err := ProtoBinder.GetRequest(funcName)
 	if err == nil {
 		err = json.Unmarshal(payload, reqData)
@@ -24,7 +24,7 @@ func (i *JsonInterceptor) OnPreHandle(funcName string, payload []byte) (interfac
 	return reqData, respData, nil
 }
 
-func (i *JsonInterceptor) OnHandleCompletion(funcName string, req interface{}, resp interface{}) ([]byte, error) {
+func (i *JsonServInterceptor) OnHandleCompletion(funcName string, req interface{}, resp interface{}) ([]byte, error) {
 	if req != nil {
 		ProtoBinder.ReuseRequest(req, funcName)
 	}
@@ -40,4 +40,16 @@ func (i *JsonInterceptor) OnHandleCompletion(funcName string, req interface{}, r
 	}
 
 	return payload, err
+}
+
+type JsonPipelineInterceptor struct {
+}
+
+func (i *JsonPipelineInterceptor) OnMarshalRequest(funcName string, reqObj interface{}) ([]byte, error) {
+	payload, err := json.Marshal(reqObj)
+	return payload, err
+}
+
+func (i *JsonPipelineInterceptor) OnUnmarshalResponse(funcName string, respData []byte, respObj interface{}) error {
+	return json.Unmarshal(respData, respObj)
 }

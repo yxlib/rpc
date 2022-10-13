@@ -5,95 +5,178 @@
 package rpc
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/yxlib/yx"
 )
 
+var (
+	ErrServNotExist = errors.New("service not exist")
+)
+
+type PipelineList = []*Pipeline
+
 //==========================================
-//               Client
+//               client
 //==========================================
-type Client struct {
-	mapPeerId2Peer map[uint32]*Peer
-	lckPeer        *sync.Mutex
-	ec             *yx.ErrCatcher
+type client struct {
+	mapPeerId2Pipelines map[uint32]PipelineList
+	lckPipelines        *sync.Mutex
+	ec                  *yx.ErrCatcher
 }
 
-func NewClient() *Client {
-	return &Client{
-		mapPeerId2Peer: make(map[uint32]*Peer),
-		lckPeer:        &sync.Mutex{},
-		ec:             yx.NewErrCatcher("rpc.Client"),
-	}
+var Client = &client{
+	mapPeerId2Pipelines: make(map[uint32]PipelineList),
+	lckPipelines:        &sync.Mutex{},
+	ec:                  yx.NewErrCatcher("rpc.Client"),
 }
 
-func (c *Client) AddPeer(net Net, mark string, peerType uint32, peerNo uint32, timeoutSec uint32) (*Peer, error) {
-	oldPeer, newPeer := c.addPeer(net, mark, peerType, peerNo)
-	if oldPeer != nil {
-		oldPeer.Stop()
+func (c *client) AddPipeline(net Net, peerType uint32, peerNo uint32, service string, timeoutSec uint32) (*Pipeline, error) {
+	oldPipeline, newPipeline := c.addPipeline(net, peerType, peerNo, service)
+	if oldPipeline != nil {
+		oldPipeline.Stop()
 	}
 
-	newPeer.SetTimeout(timeoutSec)
-	go newPeer.Start()
-	return newPeer, nil
+	newPipeline.SetTimeout(timeoutSec)
+	go newPipeline.Start()
+	return newPipeline, nil
 }
 
-func (c *Client) GetPeer(peerType uint32, peerNo uint32) (*Peer, bool) {
-	return c.getPeer(peerType, peerNo)
+func (c *client) GetPipeline(peerType uint32, peerNo uint32, service string) (*Pipeline, bool) {
+	return c.getPipeline(peerType, peerNo, service)
 }
 
-func (c *Client) RemovePeer(peerType uint32, peerNo uint32) {
-	peer, ok := c.removePeer(peerType, peerNo)
+func (c *client) RemovePipeline(peerType uint32, peerNo uint32, service string) {
+	pipeline, ok := c.removePipeline(peerType, peerNo, service)
 	if ok {
-		peer.Stop()
+		pipeline.Stop()
 	}
 }
 
-func (c *Client) RemoveAllPeers() {
+func (c *client) RemovePipelines(peerType uint32, peerNo uint32) {
+	pipelines, ok := c.removePipelines(peerType, peerNo)
+	if ok {
+		for _, pipeline := range pipelines {
+			pipeline.Stop()
+		}
+	}
+}
+
+func (c *client) RemoveAllPeers() {
 	c.removeAllPeers()
 }
 
-func (c *Client) addPeer(net Net, mark string, peerType uint32, peerNo uint32) (oldPeer *Peer, newPeer *Peer) {
-	c.lckPeer.Lock()
-	defer c.lckPeer.Unlock()
-
-	peerId := GetPeerId(peerType, peerNo)
-	oldPeer = c.mapPeerId2Peer[peerId]
-
-	peer := NewPeer(net, mark, peerType, peerNo)
-	c.mapPeerId2Peer[peerId] = peer
-	return oldPeer, peer
-}
-
-func (c *Client) getPeer(peerType uint32, peerNo uint32) (*Peer, bool) {
-	c.lckPeer.Lock()
-	defer c.lckPeer.Unlock()
-
-	peerId := GetPeerId(peerType, peerNo)
-	peer, ok := c.mapPeerId2Peer[peerId]
-	return peer, ok
-}
-
-func (c *Client) removePeer(peerType uint32, peerNo uint32) (*Peer, bool) {
-	c.lckPeer.Lock()
-	defer c.lckPeer.Unlock()
-
-	peerId := GetPeerId(peerType, peerNo)
-	peer, ok := c.mapPeerId2Peer[peerId]
+func (c *client) Call(peerType uint32, peerNo uint32, service string, funcName string, reqObj interface{}, respObj interface{}) error {
+	pipeline, ok := c.getPipeline(peerType, peerNo, service)
 	if ok {
-		delete(c.mapPeerId2Peer, peerId)
+		return pipeline.Call(funcName, reqObj, respObj)
 	}
 
-	return peer, ok
+	return ErrServNotExist
 }
 
-func (c *Client) removeAllPeers() {
-	c.lckPeer.Lock()
-	defer c.lckPeer.Unlock()
-
-	for _, peer := range c.mapPeerId2Peer {
-		peer.Stop()
+func (c *client) AsyncCall(peerType uint32, peerNo uint32, service string, cb func(interface{}, error), funcName string, reqObj interface{}, respObj interface{}) {
+	pipeline, ok := c.getPipeline(peerType, peerNo, service)
+	if ok {
+		pipeline.AsyncCall(cb, funcName, reqObj, respObj)
+		return
 	}
 
-	c.mapPeerId2Peer = make(map[uint32]*Peer)
+	if cb != nil {
+		cb(nil, ErrServNotExist)
+	}
+}
+
+func (c *client) CallNoReturn(peerType uint32, peerNo uint32, service string, funcName string, reqObj interface{}) error {
+	pipeline, ok := c.getPipeline(peerType, peerNo, service)
+	if ok {
+		err := pipeline.CallNoReturn(funcName, reqObj)
+		return err
+	}
+
+	return ErrServNotExist
+}
+
+func (c *client) addPipeline(net Net, peerType uint32, peerNo uint32, service string) (oldPipeline *Pipeline, newPipeline *Pipeline) {
+	c.lckPipelines.Lock()
+	defer c.lckPipelines.Unlock()
+
+	oldPipeline = nil
+	peerId := GetPeerId(peerType, peerNo)
+	pipelines, ok := c.mapPeerId2Pipelines[peerId]
+	if ok {
+		for i, pipeline := range pipelines {
+			if pipeline.GetService() == service {
+				oldPipeline = pipeline
+				c.mapPeerId2Pipelines[peerId] = append(pipelines[:i], pipelines[i+1:]...)
+				break
+			}
+		}
+	}
+
+	newPipeline = NewPipeline(net, peerType, peerNo, service)
+	c.mapPeerId2Pipelines[peerId] = append(c.mapPeerId2Pipelines[peerId], newPipeline)
+	return oldPipeline, newPipeline
+}
+
+func (c *client) getPipeline(peerType uint32, peerNo uint32, service string) (*Pipeline, bool) {
+	c.lckPipelines.Lock()
+	defer c.lckPipelines.Unlock()
+
+	peerId := GetPeerId(peerType, peerNo)
+	pipelines, ok := c.mapPeerId2Pipelines[peerId]
+	if ok {
+		for _, pipeline := range pipelines {
+			if pipeline.GetService() == service {
+				return pipeline, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
+func (c *client) removePipeline(peerType uint32, peerNo uint32, service string) (*Pipeline, bool) {
+	c.lckPipelines.Lock()
+	defer c.lckPipelines.Unlock()
+
+	peerId := GetPeerId(peerType, peerNo)
+	pipelines, ok := c.mapPeerId2Pipelines[peerId]
+	if ok {
+		for i, pipeline := range pipelines {
+			if pipeline.GetService() == service {
+				c.mapPeerId2Pipelines[peerId] = append(pipelines[:i], pipelines[i+1:]...)
+				return pipeline, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
+func (c *client) removePipelines(peerType uint32, peerNo uint32) ([]*Pipeline, bool) {
+	c.lckPipelines.Lock()
+	defer c.lckPipelines.Unlock()
+
+	peerId := GetPeerId(peerType, peerNo)
+	pipelines, ok := c.mapPeerId2Pipelines[peerId]
+	if ok {
+		delete(c.mapPeerId2Pipelines, peerId)
+	}
+
+	return pipelines, ok
+}
+
+func (c *client) removeAllPeers() {
+	c.lckPipelines.Lock()
+	defer c.lckPipelines.Unlock()
+
+	for _, pipelines := range c.mapPeerId2Pipelines {
+		for _, pipeline := range pipelines {
+			pipeline.Stop()
+		}
+	}
+
+	c.mapPeerId2Pipelines = make(map[uint32]PipelineList)
 }

@@ -24,14 +24,14 @@ var (
 )
 
 type PackHeader struct {
-	Mark     []byte
+	Mark     string
 	SerialNo uint16
 	FuncNo   uint16
 
 	ec *yx.ErrCatcher
 }
 
-func NewPackHeader(mark []byte, serialNo uint16, funcNo uint16) *PackHeader {
+func NewPackHeader(mark string, serialNo uint16, funcNo uint16) *PackHeader {
 	return &PackHeader{
 		Mark:     mark,
 		SerialNo: serialNo,
@@ -41,7 +41,7 @@ func NewPackHeader(mark []byte, serialNo uint16, funcNo uint16) *PackHeader {
 }
 
 func (p *PackHeader) GetHeaderLen() int {
-	return len(p.Mark) + RPC_SERIAL_NO_LEN + RPC_FUNC_NO_LEN
+	return len([]byte(p.Mark)) + RPC_SERIAL_NO_LEN + RPC_FUNC_NO_LEN
 }
 
 func (p *PackHeader) Marshal() ([]byte, error) {
@@ -54,7 +54,7 @@ func (p *PackHeader) Marshal() ([]byte, error) {
 
 	// ====== head
 	// mark
-	err = binary.Write(buffWrap, binary.BigEndian, p.Mark)
+	err = binary.Write(buffWrap, binary.BigEndian, []byte(p.Mark))
 	if err != nil {
 		return nil, err
 	}
@@ -96,12 +96,12 @@ func (p *PackHeader) Unmarshal(buff []byte) error {
 
 	// ====== head
 	// mark
-	if !CheckRpcMark(p.Mark, buff) {
+	if !CheckRpcMark([]byte(p.Mark), buff) {
 		err = ErrPackMarkCheckFailed
 		return err
 	}
 
-	markLen := len(p.Mark)
+	markLen := len([]byte(p.Mark))
 	if len(buff) < markLen+RPC_SERIAL_NO_LEN+RPC_FUNC_NO_LEN {
 		err = ErrPackTooSmall
 		return err
