@@ -74,6 +74,15 @@ func (p *Pipeline) SetTimeout(timeoutSec uint32) {
 	p.timeoutSec = timeoutSec
 }
 
+func (p *Pipeline) GetFuncList() []string {
+	funcList := make([]string, 0, len(p.mapFuncName2No))
+	for name := range p.mapFuncName2No {
+		funcList = append(funcList, name)
+	}
+
+	return funcList
+}
+
 func (p *Pipeline) Start() {
 	p.readPackLoop()
 }
@@ -89,7 +98,7 @@ func (p *Pipeline) FetchFuncList() error {
 		return p.ec.Throw("FetchFuncList", ErrPipelineInterNil)
 	}
 
-	payload, err := p.callByFuncNo(RPC_FUNC_NO_FUNC_LIST, nil, false)
+	payload, err := p.CallByFuncNo(RPC_FUNC_NO_FUNC_LIST, false)
 	if err != nil {
 		return p.ec.Throw("FetchFuncList", err)
 	}
@@ -142,7 +151,7 @@ func (p *Pipeline) Call(funcName string, reqObj interface{}, respObj interface{}
 		return p.ec.Throw("Call", err)
 	}
 
-	buff, err := p.callByFuncName(funcName, params, false)
+	buff, err := p.CallByFuncName(funcName, false, params)
 	if err != nil {
 		return p.ec.Throw("Call", err)
 	}
@@ -179,21 +188,21 @@ func (p *Pipeline) CallNoReturn(funcName string, reqObj interface{}) error {
 		return p.ec.Throw("CallNoReturn", err)
 	}
 
-	_, err = p.callByFuncName(funcName, params, true)
+	_, err = p.CallByFuncName(funcName, true, params)
 	return p.ec.Throw("CallNoReturn", err)
 }
 
-func (p *Pipeline) callByFuncName(funcName string, params []byte, bNoReturn bool) ([]byte, error) {
+func (p *Pipeline) CallByFuncName(funcName string, bNoReturn bool, params ...[]byte) ([]byte, error) {
 	funcNo, ok := p.mapFuncName2No[funcName]
 	if !ok {
 		return nil, p.ec.Throw("Call", ErrPipelineNotSupportFunc)
 	}
 
-	payload, err := p.callByFuncNo(funcNo, params, bNoReturn)
+	payload, err := p.CallByFuncNo(funcNo, bNoReturn, params...)
 	return payload, p.ec.Throw("Call", err)
 }
 
-func (p *Pipeline) callByFuncNo(funcNo uint16, params []byte, bNoReturn bool) ([]byte, error) {
+func (p *Pipeline) CallByFuncNo(funcNo uint16, bNoReturn bool, params ...[]byte) ([]byte, error) {
 	var err error = nil
 	defer p.ec.DeferThrow("callByFuncNo", &err)
 
@@ -203,12 +212,12 @@ func (p *Pipeline) callByFuncNo(funcNo uint16, params []byte, bNoReturn bool) ([
 	}
 
 	if bNoReturn {
-		err := p.callNoReturnImpl(funcNo, params)
+		err := p.callNoReturnImpl(funcNo, params...)
 		return nil, err
 	}
 
 	// add to list
-	req, payload, err := p.addRequest(funcNo, params)
+	req, payload, err := p.addRequest(funcNo, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +248,7 @@ func (p *Pipeline) callByFuncNo(funcNo uint16, params []byte, bNoReturn bool) ([
 	return req.respPayload, nil
 }
 
-func (p *Pipeline) callNoReturnImpl(funcNo uint16, params []byte) error {
+func (p *Pipeline) callNoReturnImpl(funcNo uint16, params ...[]byte) error {
 	var err error = nil
 	defer p.ec.DeferThrow("callNoReturnImpl", &err)
 
@@ -252,7 +261,7 @@ func (p *Pipeline) callNoReturnImpl(funcNo uint16, params []byte) error {
 	payload := make([]ByteArray, 0)
 	payload = append(payload, headerData)
 	if len(params) > 0 {
-		payload = append(payload, params)
+		payload = append(payload, params...)
 	}
 
 	err = p.net.WriteRpcPack(p.peerType, p.peerNo, payload...)
@@ -263,7 +272,7 @@ func (p *Pipeline) callNoReturnImpl(funcNo uint16, params []byte) error {
 // 	p.resetCurRequest()
 // }
 
-func (p *Pipeline) addRequest(funcNo uint16, params []byte) (*Request, []ByteArray, error) {
+func (p *Pipeline) addRequest(funcNo uint16, params ...[]byte) (*Request, []ByteArray, error) {
 	p.lckRequests.Lock()
 	defer p.lckRequests.Unlock()
 
@@ -275,12 +284,14 @@ func (p *Pipeline) addRequest(funcNo uint16, params []byte) (*Request, []ByteArr
 	}
 
 	req := NewRequest(h)
-	req.AddFrame(params)
+	if len(params) > 0 {
+		req.AddFrames(params)
+	}
 
 	payload := make([]ByteArray, 0)
 	payload = append(payload, headerData)
 	if len(params) > 0 {
-		payload = append(payload, params)
+		payload = append(payload, params...)
 	}
 
 	p.maxSerialNo++

@@ -65,6 +65,19 @@ func (s *server) GetService(name string) (Service, bool) {
 	return serv, ok
 }
 
+func (s *server) GetAllServices() []Service {
+	services := make([]Service, 0)
+
+	s.lckServices.Lock()
+	defer s.lckServices.Unlock()
+
+	for _, service := range s.mapName2Service {
+		services = append(services, service)
+	}
+
+	return services
+}
+
 func (s *server) RemoveService(name string) {
 	s.lckServices.Lock()
 	defer s.lckServices.Unlock()
