@@ -38,8 +38,8 @@ type SrvFuncConf struct {
 }
 
 type ServiceConf struct {
-	Net              string                  `json:"net"`
 	Name             string                  `json:"name"`
+	Service          string                  `json:"service"`
 	MapFuncName2Info map[string]*SrvFuncConf `json:"func"`
 }
 

@@ -1,8 +1,8 @@
 {
     "services" : [
         {
-            "net" : "github.com/yxlib/rpc.SrvNet",
             "name" : "RPC_TEST_3",
+            "service" : "github.com/yxlib/rpc.Service",
             "func" :
             {
                 "SayHello" :

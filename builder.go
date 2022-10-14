@@ -22,15 +22,20 @@ func (b *builder) BuildSrv(srvCfg *SrvConf) {
 	objFactory := Server.GetObjectFactory()
 
 	for _, cfg := range srvCfg.Services {
-		net, err := objFactory.CreateObject(cfg.Net)
+		obj, err := objFactory.CreateObject(cfg.Service)
 		if err != nil {
-			b.logger.W("net object not register", cfg.Net)
+			b.logger.W("service object not register: ", cfg.Service)
 			continue
 		}
 
-		srv := NewBaseService(net.(Net), cfg.Name)
+		srv, ok := obj.(Service)
+		if !ok {
+			b.logger.W("not Service object: ", cfg.Service)
+			continue
+		}
+
+		srv.SetName(cfg.Name)
 		v := reflect.ValueOf(srv)
-		// srv.SetMark(cfg.Mark)
 
 		funcNo := uint16(RPC_FUNC_NO_FUNC_LIST)
 		for funcName, funcCfg := range cfg.MapFuncName2Info {

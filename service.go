@@ -37,6 +37,7 @@ type ServiceInterceptor interface {
 }
 
 type Service interface {
+	SetName(name string)
 	GetName() string
 	GetRpcNet() Net
 	SetDebugMode(bDebugMode bool)
@@ -56,9 +57,9 @@ type BaseService struct {
 	logger            *yx.Logger
 }
 
-func NewBaseService(net Net, name string) *BaseService {
-	s := &BaseService{
-		name:              name,
+func NewBaseService(net Net) *BaseService {
+	return &BaseService{
+		name:              "",
 		bDebugMode:        false,
 		mapFuncNo2Name:    make(map[uint16]string),
 		mapFuncNo2Handler: make(map[uint16]reflect.Value),
@@ -67,9 +68,6 @@ func NewBaseService(net Net, name string) *BaseService {
 		ec:                yx.NewErrCatcher("rpc.Service"),
 		logger:            yx.NewLogger("rpc.Service"),
 	}
-
-	s.net.SetService(s.name, true, 0, 0)
-	return s
 }
 
 func (s *BaseService) SetInterceptor(inter ServiceInterceptor) {
@@ -80,6 +78,11 @@ func (s *BaseService) SetInterceptor(inter ServiceInterceptor) {
 // 	s.name = mark
 // 	s.net.SetService(s.name, true, 0, 0)
 // }
+
+func (s *BaseService) SetName(name string) {
+	s.name = name
+	s.net.SetService(s.name, true, 0, 0)
+}
 
 func (s *BaseService) GetName() string {
 	return s.name
