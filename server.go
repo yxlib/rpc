@@ -87,3 +87,15 @@ func (s *server) RemoveService(name string) {
 		delete(s.mapName2Service, name)
 	}
 }
+
+func (s *server) Start() {
+	for _, service := range s.mapName2Service {
+		go service.Start()
+	}
+}
+
+func (s *server) Stop() {
+	for _, service := range s.mapName2Service {
+		service.Stop()
+	}
+}
