@@ -12,21 +12,28 @@ import (
 	"github.com/yxlib/yx"
 )
 
-const (
-	RPC_SERIAL_NO_LEN = 2
-	RPC_FUNC_NO_LEN   = 2
-)
-
 var (
 	ErrPackFrameIsNil      = errors.New("frame is nil")
 	ErrPackMarkCheckFailed = errors.New("rpc mark check failed")
 	ErrPackTooSmall        = errors.New("pack header data not enough")
 )
 
+const (
+	RPC_SERIAL_NO_LEN = 2
+	RPC_FUNC_NO_LEN   = 2
+	RPC_CODE_LEN      = 2
+)
+
+const (
+	RES_CODE_SUCC    uint16 = 0
+	RES_CODE_SYS_ERR uint16 = 1
+)
+
 type PackHeader struct {
 	Mark     string
 	SerialNo uint16
 	FuncNo   uint16
+	Code     uint16
 
 	ec *yx.ErrCatcher
 }
@@ -36,12 +43,13 @@ func NewPackHeader(mark string, serialNo uint16, funcNo uint16) *PackHeader {
 		Mark:     mark,
 		SerialNo: serialNo,
 		FuncNo:   funcNo,
+		Code:     RES_CODE_SUCC,
 		ec:       yx.NewErrCatcher("rpc.PackHeader"),
 	}
 }
 
 func (p *PackHeader) GetHeaderLen() int {
-	return len([]byte(p.Mark)) + RPC_SERIAL_NO_LEN + RPC_FUNC_NO_LEN
+	return len([]byte(p.Mark)) + RPC_SERIAL_NO_LEN + RPC_FUNC_NO_LEN + RPC_CODE_LEN
 }
 
 func (p *PackHeader) Marshal() ([]byte, error) {
@@ -72,6 +80,12 @@ func (p *PackHeader) Marshal() ([]byte, error) {
 
 	// func No.
 	err = binary.Write(buffWrap, binary.BigEndian, p.FuncNo)
+	if err != nil {
+		return nil, err
+	}
+
+	// code
+	err = binary.Write(buffWrap, binary.BigEndian, p.Code)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +132,12 @@ func (p *PackHeader) Unmarshal(buff []byte) error {
 
 	// func No.
 	err = binary.Read(buffWrap, binary.BigEndian, &p.FuncNo)
+	if err != nil {
+		return err
+	}
+
+	// code
+	err = binary.Read(buffWrap, binary.BigEndian, &p.Code)
 	if err != nil {
 		return err
 	}
@@ -182,6 +202,7 @@ func (p *Pack) AddFrames(frames []ByteArray) error {
 //========================
 type Request struct {
 	*Pack
+	respCode    uint16
 	respPayload []byte
 	evt         *yx.Event
 }
@@ -189,6 +210,7 @@ type Request struct {
 func NewRequest(h *PackHeader) *Request {
 	return &Request{
 		Pack:        NewPack(h),
+		respCode:    RES_CODE_SUCC,
 		respPayload: nil,
 		evt:         yx.NewEvent(),
 	}
@@ -213,8 +235,17 @@ func (r *Request) Signal() error {
 	return r.evt.Send()
 }
 
-func (r *Request) SetResponseData(payload []byte) {
+func (r *Request) SetResponse(code uint16, payload []byte) {
+	r.respCode = code
 	r.respPayload = payload
+}
+
+func (r *Request) GetResponse() (uint16, []byte) {
+	return r.respCode, r.respPayload
+}
+
+func (r *Request) GetResponseCode() uint16 {
+	return r.respCode
 }
 
 func (r *Request) GetResponseData() []byte {
