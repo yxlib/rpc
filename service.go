@@ -163,9 +163,12 @@ func (s *BaseService) readPackLoop() {
 
 		headerLen := h.GetHeaderLen()
 		req := NewSingleFrameRequest(h, data.Payload[headerLen:])
-		yx.RunDangerCode(func() {
-			s.handleRequest(req, data.PeerType, data.PeerNo)
-		}, s.bDebugMode)
+
+		go func() {
+			yx.RunDangerCode(func() {
+				s.handleRequest(req, data.PeerType, data.PeerNo)
+			}, s.bDebugMode)
+		}()
 	}
 }
 
