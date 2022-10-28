@@ -180,6 +180,8 @@ func (s *BaseService) handleRequest(req *Request, peerType uint32, peerNo uint32
 	var returnData []byte = nil
 
 	defer func() {
+		s.logger.I("result code: ", code)
+
 		if err != nil {
 			returnData = []byte(err.Error())
 		}
@@ -195,38 +197,40 @@ func (s *BaseService) handleRequest(req *Request, peerType uint32, peerNo uint32
 	}
 
 	funcName := s.mapFuncNo2Name[req.Header.FuncNo]
-	funcName = GetFullFuncName(s.name, funcName)
-	reqData, _ := ProtoBinder.GetRequest(funcName)
-	respData, _ := ProtoBinder.GetResponse(funcName)
+	funcFullName := GetFullFuncName(s.name, funcName)
+	reqData, _ := ProtoBinder.GetRequest(funcFullName)
+	respData, _ := ProtoBinder.GetResponse(funcFullName)
 
 	defer func() {
 		if reqData != nil {
-			ProtoBinder.ReuseRequest(reqData, funcName)
+			ProtoBinder.ReuseRequest(reqData, funcFullName)
 		}
 
 		if respData != nil {
-			ProtoBinder.ReuseResponse(respData, funcName)
+			ProtoBinder.ReuseResponse(respData, funcFullName)
 		}
 	}()
 
 	// reqData := interface{}(req.Payload[0])
 	// respData := interface{}(nil)
 	if reqData != nil && s.inter != nil {
-		err = s.inter.OnUnmarshal(funcName, req.Payload[0], reqData)
+		err = s.inter.OnUnmarshal(funcFullName, req.Payload[0], reqData)
 		if err != nil {
 			return
 		}
 	}
 
 	// handle
+	s.logger.I("=============>  ", funcName, "  <=============")
 	code, err = handler(reqData, respData, peerType, peerNo)
 	if err != nil {
+		s.ec.Throw(funcName, err)
 		return
 	}
 
 	// handle completion
 	if s.inter != nil {
-		returnData, err = s.inter.OnMarshal(funcName, respData)
+		returnData, err = s.inter.OnMarshal(funcFullName, respData)
 	} else if respData != nil {
 		returnData, ok = respData.([]byte)
 		if !ok {
