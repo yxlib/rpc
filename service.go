@@ -186,7 +186,10 @@ func (s *BaseService) handleRequest(req *Request, peerType uint32, peerNo uint32
 			returnData = []byte(err.Error())
 		}
 
-		err = s.writeResp(req, peerType, peerNo, code, returnData)
+		writeErr := s.writeResp(req, peerType, peerNo, code, returnData)
+		if writeErr != nil {
+			s.logger.E("writeResp err: ", writeErr)
+		}
 	}()
 
 	// pre handle
