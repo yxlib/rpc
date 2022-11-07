@@ -11,36 +11,36 @@ import (
 	"github.com/yxlib/yx"
 )
 
-func GenSrvRegisterFile(cfgPath string, regFilePath string, regPackName string) {
-	yx.LoadJsonConf(SrvConfInst, cfgPath, nil)
-	GenSrvRegisterFileByCfg(SrvConfInst, regFilePath, regPackName)
-}
+// func GenSrvRegisterFile(cfgPath string, regFilePath string, regPackName string) {
+// 	yx.LoadJsonConf(SrvConfInst, cfgPath, nil)
+// 	GenSrvRegisterFileByCfg(SrvConfInst, regFilePath, regPackName)
+// }
 
-// Generate the service register file.
-// @param cfgPath, the config path.
-// @param regFilePath, the output register file.
-// @param regPackName, the package name of the file.
-func GenSrvRegisterFileByCfg(srvCfg *SrvConf, regFilePath string, regPackName string) {
-	f, err := os.OpenFile(regFilePath, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return
-	}
+// // Generate the service register file.
+// // @param cfgPath, the config path.
+// // @param regFilePath, the output register file.
+// // @param regPackName, the package name of the file.
+// func GenSrvRegisterFileByCfg(srvCfg *SrvConf, regFilePath string, regPackName string) {
+// 	f, err := os.OpenFile(regFilePath, os.O_WRONLY|os.O_CREATE, 0666)
+// 	if err != nil {
+// 		return
+// 	}
 
-	defer f.Close()
+// 	defer f.Close()
 
-	writePackage(f, regPackName)
+// 	writePackage(f, regPackName)
 
-	funcConfs := make([]*FuncConf, 0)
-	for _, serviceCfg := range srvCfg.Services {
-		for funcName, cfg := range serviceCfg.MapFuncName2Info {
-			cfg.FuncName = funcName
-			funcConfs = append(funcConfs, cfg.FuncConf)
-		}
-	}
+// 	funcConfs := make([]*FuncConf, 0)
+// 	for _, serviceCfg := range srvCfg.Services {
+// 		for funcName, cfg := range serviceCfg.MapFuncName2Info {
+// 			cfg.FuncName = funcName
+// 			funcConfs = append(funcConfs, cfg.FuncConf)
+// 		}
+// 	}
 
-	writeImport(funcConfs, regPackName, f)
-	writeRegFunc(funcConfs, f)
-}
+// 	writeImport(funcConfs, regPackName, f)
+// 	writeRegFunc(funcConfs, f)
+// }
 
 func GenCliRegisterFile(cfgPath string, regFilePath string, regPackName string) {
 	var cliCfg *CliConf = &CliConf{}

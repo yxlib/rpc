@@ -67,7 +67,7 @@ func (c *client) RemoveAllPeers() {
 	c.removeAllPeers()
 }
 
-func (c *client) Call(peerType uint32, peerNo uint32, service string, funcName string, reqObj interface{}, respObj interface{}) (uint16, error) {
+func (c *client) Call(peerType uint32, peerNo uint32, service string, funcName string, reqObj interface{}, respObj interface{}) (int32, error) {
 	pipeline, ok := c.getPipeline(peerType, peerNo, service)
 	if ok {
 		return pipeline.Call(funcName, reqObj, respObj)
@@ -76,7 +76,7 @@ func (c *client) Call(peerType uint32, peerNo uint32, service string, funcName s
 	return RES_CODE_SYS_ERR, ErrServNotExist
 }
 
-func (c *client) AsyncCall(peerType uint32, peerNo uint32, service string, cb func(code uint16, resp interface{}, err error), funcName string, reqObj interface{}, respObj interface{}) {
+func (c *client) AsyncCall(peerType uint32, peerNo uint32, service string, cb func(code int32, resp interface{}, err error), funcName string, reqObj interface{}, respObj interface{}) {
 	pipeline, ok := c.getPipeline(peerType, peerNo, service)
 	if ok {
 		pipeline.AsyncCall(cb, funcName, reqObj, respObj)

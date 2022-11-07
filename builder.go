@@ -5,8 +5,6 @@
 package rpc
 
 import (
-	"reflect"
-
 	"github.com/yxlib/yx"
 )
 
@@ -18,55 +16,55 @@ var Builder = &builder{
 	logger: yx.NewLogger("rpc.Builder"),
 }
 
-func (b *builder) BuildSrv(srvCfg *SrvConf) {
-	objFactory := Server.GetObjectFactory()
+// func (b *builder) BuildSrv(srvCfg *SrvConf) {
+// 	objFactory := Server.GetObjectFactory()
 
-	for _, cfg := range srvCfg.Services {
-		obj, err := objFactory.CreateObject(cfg.Service)
-		if err != nil {
-			b.logger.W("service object not register: ", cfg.Service)
-			continue
-		}
+// 	for _, cfg := range srvCfg.Services {
+// 		obj, err := objFactory.CreateObject(cfg.Service)
+// 		if err != nil {
+// 			b.logger.W("service object not register: ", cfg.Service)
+// 			continue
+// 		}
 
-		srv, ok := obj.(Service)
-		if !ok {
-			b.logger.W("not Service object: ", cfg.Service)
-			continue
-		}
+// 		srv, ok := obj.(Service)
+// 		if !ok {
+// 			b.logger.W("not Service object: ", cfg.Service)
+// 			continue
+// 		}
 
-		srv.SetName(cfg.Name)
-		v := reflect.ValueOf(srv)
+// 		srv.SetName(cfg.Name)
+// 		v := reflect.ValueOf(srv)
 
-		funcNo := uint16(RPC_FUNC_NO_FUNC_LIST)
-		for funcName, funcCfg := range cfg.MapFuncName2Info {
-			if funcName == RPC_FUNC_NAME_FUNC_LIST {
-				funcCfg.FuncNo = RPC_FUNC_NO_FUNC_LIST
-			} else {
-				funcNo++
-				funcCfg.FuncNo = funcNo
-			}
+// 		funcNo := uint16(RPC_FUNC_NO_FUNC_LIST)
+// 		for funcName, funcCfg := range cfg.MapFuncName2Info {
+// 			if funcName == RPC_FUNC_NAME_FUNC_LIST {
+// 				funcCfg.FuncNo = RPC_FUNC_NO_FUNC_LIST
+// 			} else {
+// 				funcNo++
+// 				funcCfg.FuncNo = funcNo
+// 			}
 
-			// proto
-			fullFuncName := GetFullFuncName(cfg.Name, funcName)
-			err := ProtoBinder.BindProto(fullFuncName, funcCfg.Request, funcCfg.Response)
-			if err != nil {
-				b.logger.W("not support func ", fullFuncName)
-				continue
-			}
+// 			// proto
+// 			fullFuncName := GetFullFuncName(cfg.Name, funcName)
+// 			err := ProtoBinder.BindProto(fullFuncName, funcCfg.Request, funcCfg.Response)
+// 			if err != nil {
+// 				b.logger.W("not support func ", fullFuncName)
+// 				continue
+// 			}
 
-			// handler
-			m := v.MethodByName(funcCfg.Handler)
-			err = srv.AddReflectProcessor(m, funcCfg.FuncNo, funcName)
-			if err != nil {
-				b.logger.E("AddReflectProcessor err: ", err)
-				b.logger.W("not support func ", fullFuncName)
-				continue
-			}
-		}
+// 			// handler
+// 			m := v.MethodByName(funcCfg.Handler)
+// 			err = srv.AddReflectProcessor(m, funcCfg.FuncNo, funcName)
+// 			if err != nil {
+// 				b.logger.E("AddReflectProcessor err: ", err)
+// 				b.logger.W("not support func ", fullFuncName)
+// 				continue
+// 			}
+// 		}
 
-		Server.AddService(srv)
-	}
-}
+// 		Server.AddService(srv)
+// 	}
+// }
 
 // build rpc client.
 // @param cli, dest rpc client.

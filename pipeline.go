@@ -145,7 +145,7 @@ func (p *Pipeline) AsyncFetchFuncList(cb func(err error)) {
 	}()
 }
 
-func (p *Pipeline) Call(funcName string, reqObj interface{}, respObj interface{}) (uint16, error) {
+func (p *Pipeline) Call(funcName string, reqObj interface{}, respObj interface{}) (int32, error) {
 	code := RES_CODE_SYS_ERR
 
 	if p.inter == nil {
@@ -173,7 +173,7 @@ func (p *Pipeline) Call(funcName string, reqObj interface{}, respObj interface{}
 	return code, nil
 }
 
-func (p *Pipeline) AsyncCall(cb func(code uint16, resp interface{}, err error), funcName string, reqObj interface{}, respObj interface{}) {
+func (p *Pipeline) AsyncCall(cb func(code int32, resp interface{}, err error), funcName string, reqObj interface{}, respObj interface{}) {
 	if p.inter == nil {
 		if cb != nil {
 			cb(RES_CODE_SYS_ERR, respObj, ErrPipelineInterNil)
@@ -205,7 +205,7 @@ func (p *Pipeline) CallNoReturn(funcName string, reqObj interface{}) error {
 	return p.ec.Throw("CallNoReturn", err)
 }
 
-func (p *Pipeline) CallByFuncName(funcName string, bNoReturn bool, params ...[]byte) (uint16, []byte, error) {
+func (p *Pipeline) CallByFuncName(funcName string, bNoReturn bool, params ...[]byte) (int32, []byte, error) {
 	funcNo, ok := p.mapFuncName2No[funcName]
 	if !ok {
 		return RES_CODE_SYS_ERR, nil, p.ec.Throw("CallByFuncName", ErrPipelineNotSupportFunc)
@@ -224,7 +224,7 @@ func (p *Pipeline) CallByFuncName(funcName string, bNoReturn bool, params ...[]b
 	return code, payload, nil
 }
 
-func (p *Pipeline) CallByFuncNo(funcNo uint16, bNoReturn bool, params ...[]byte) (uint16, []byte, error) {
+func (p *Pipeline) CallByFuncNo(funcNo uint16, bNoReturn bool, params ...[]byte) (int32, []byte, error) {
 	var err error = nil
 	defer p.ec.DeferThrow("callByFuncNo", &err)
 
@@ -392,7 +392,7 @@ func (p *Pipeline) readPackLoop() {
 	}
 }
 
-func (p *Pipeline) handlePack(serialNo uint16, funcNo uint16, code uint16, payload []byte) {
+func (p *Pipeline) handlePack(serialNo uint16, funcNo uint16, code int32, payload []byte) {
 	req, ok := p.getRequest(serialNo)
 	if !ok {
 		return

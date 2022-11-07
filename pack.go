@@ -25,15 +25,15 @@ const (
 )
 
 const (
-	RES_CODE_SUCC    uint16 = 0
-	RES_CODE_SYS_ERR uint16 = 1
+	RES_CODE_SUCC    int32 = 0
+	RES_CODE_SYS_ERR int32 = 1
 )
 
 type PackHeader struct {
 	Mark     string
 	SerialNo uint16
 	FuncNo   uint16
-	Code     uint16
+	Code     int32
 
 	ec *yx.ErrCatcher
 }
@@ -202,7 +202,7 @@ func (p *Pack) AddFrames(frames []ByteArray) error {
 //========================
 type Request struct {
 	*Pack
-	respCode    uint16
+	respCode    int32
 	respPayload []byte
 	evt         *yx.Event
 }
@@ -235,16 +235,16 @@ func (r *Request) Signal() error {
 	return r.evt.Send()
 }
 
-func (r *Request) SetResponse(code uint16, payload []byte) {
+func (r *Request) SetResponse(code int32, payload []byte) {
 	r.respCode = code
 	r.respPayload = payload
 }
 
-func (r *Request) GetResponse() (uint16, []byte) {
+func (r *Request) GetResponse() (int32, []byte) {
 	return r.respCode, r.respPayload
 }
 
-func (r *Request) GetResponseCode() uint16 {
+func (r *Request) GetResponseCode() int32 {
 	return r.respCode
 }
 

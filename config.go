@@ -32,19 +32,19 @@ type CliConf struct {
 //=========================
 //      SrvFuncConf
 //=========================
-type SrvFuncConf struct {
-	*FuncConf
-	Handler string `json:"handler"`
-}
+// type SrvFuncConf struct {
+// 	*FuncConf
+// 	Handler string `json:"handler"`
+// }
 
-type ServiceConf struct {
-	Name             string                  `json:"name"`
-	Service          string                  `json:"service"`
-	MapFuncName2Info map[string]*SrvFuncConf `json:"func"`
-}
+// type ServiceConf struct {
+// 	Name             string                  `json:"name"`
+// 	Service          string                  `json:"service"`
+// 	MapFuncName2Info map[string]*SrvFuncConf `json:"func"`
+// }
 
-type SrvConf struct {
-	Services []*ServiceConf `json:"services"`
-}
+// type SrvConf struct {
+// 	Services []*ServiceConf `json:"services"`
+// }
 
-var SrvConfInst *SrvConf = &SrvConf{}
+// var SrvConfInst *SrvConf = &SrvConf{}
