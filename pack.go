@@ -21,7 +21,7 @@ var (
 const (
 	RPC_SERIAL_NO_LEN = 2
 	RPC_FUNC_NO_LEN   = 2
-	RPC_CODE_LEN      = 2
+	RPC_CODE_LEN      = 4
 )
 
 const (
@@ -115,13 +115,14 @@ func (p *PackHeader) Unmarshal(buff []byte) error {
 		return err
 	}
 
-	markLen := len([]byte(p.Mark))
-	if len(buff) < markLen+RPC_SERIAL_NO_LEN+RPC_FUNC_NO_LEN {
+	// markLen := len([]byte(p.Mark))
+	// if len(buff) < markLen+RPC_SERIAL_NO_LEN+RPC_FUNC_NO_LEN {
+	if len(buff) < p.GetHeaderLen() {
 		err = ErrPackTooSmall
 		return err
 	}
 
-	offset := markLen
+	offset := len([]byte(p.Mark))
 	buffWrap := bytes.NewBuffer(buff[offset:])
 
 	// serial No.
@@ -188,7 +189,7 @@ func (p *Pack) AddFrame(frame []byte) error {
 	return nil
 }
 
-func (p *Pack) AddFrames(frames []ByteArray) error {
+func (p *Pack) AddFrames(frames ...[]byte) error {
 	if nil == frames {
 		return p.ec.Throw("AddFrames", ErrPackFrameIsNil)
 	}
@@ -285,7 +286,7 @@ func NewResponse(h *PackHeader) *Response {
 //========================
 //    fetch func list
 //========================
-const RPC_FUNC_NO_FUNC_LIST = uint16(1)
+// const RPC_FUNC_NO_FUNC_LIST = uint16(1)
 const RPC_FUNC_NAME_FUNC_LIST = "FetchFuncList"
 
 type FetchFuncListResp struct {

@@ -37,10 +37,9 @@ func NewNetDataWrap(peerType uint32, peerNo uint32, payload []byte) *NetDataWrap
 //     Net
 //========================
 type Net interface {
-	SetService(service string, bServer bool, srcPeerType uint32, srcPeerNo uint32)
-	GetService() string
+	SetMark(mark string, srcPeerType uint32, srcPeerNo uint32)
+	GetMark() string
 	GetPeerTypeAndNo() (uint32, uint32)
-	IsServerNet() bool
 	AddReadPack(peerType uint32, peerNo uint32, payload []byte)
 	ReadRpcPack() (*NetDataWrap, error)
 	WriteRpcPack(dstPeerType uint32, dstPeerNo uint32, payload ...[]byte) error
@@ -52,8 +51,7 @@ type Net interface {
 //========================
 type BaseNet struct {
 	// mapPeerId2Mark map[uint32]string
-	service     string
-	bSrv        bool
+	mark        string
 	srcPeerType uint32
 	srcPeerNo   uint32
 	chanPacks   chan *NetDataWrap
@@ -64,8 +62,7 @@ type BaseNet struct {
 func NewBaseNet(maxReadQue uint32) *BaseNet {
 	return &BaseNet{
 		// mapPeerId2Mark: make(map[uint32]string),
-		service:     "",
-		bSrv:        false,
+		mark:        "",
 		srcPeerType: 0,
 		srcPeerNo:   0,
 		chanPacks:   make(chan *NetDataWrap, maxReadQue),
@@ -75,9 +72,8 @@ func NewBaseNet(maxReadQue uint32) *BaseNet {
 }
 
 // rpc.Net
-func (n *BaseNet) SetService(service string, bServer bool, srcPeerType uint32, srcPeerNo uint32) {
-	n.service = service
-	n.bSrv = bServer
+func (n *BaseNet) SetMark(mark string, srcPeerType uint32, srcPeerNo uint32) {
+	n.mark = mark
 	n.srcPeerType = srcPeerType
 	n.srcPeerNo = srcPeerNo
 	// peerId := GetPeerId(srcPeerType, srcPeerNo)
@@ -89,16 +85,12 @@ func (n *BaseNet) SetService(service string, bServer bool, srcPeerType uint32, s
 	// n.mapPeerId2Mark[peerId] = mark
 }
 
-func (n *BaseNet) GetService() string {
-	return n.service
+func (n *BaseNet) GetMark() string {
+	return n.mark
 }
 
 func (n *BaseNet) GetPeerTypeAndNo() (uint32, uint32) {
 	return n.srcPeerType, n.srcPeerNo
-}
-
-func (n *BaseNet) IsServerNet() bool {
-	return n.bSrv
 }
 
 // func (n *BaseNet) RemoveReadMark(mark string, srcPeerType uint16, srcPeerNo uint16) {

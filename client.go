@@ -32,8 +32,8 @@ var Client = &client{
 	ec:                  yx.NewErrCatcher("rpc.Client"),
 }
 
-func (c *client) AddPipeline(net Net, peerType uint32, peerNo uint32, service string, timeoutSec uint32) (*Pipeline, error) {
-	oldPipeline, newPipeline := c.addPipeline(net, peerType, peerNo, service)
+func (c *client) AddPipeline(net Net, peerType uint32, peerNo uint32, mark string, timeoutSec uint32) (*Pipeline, error) {
+	oldPipeline, newPipeline := c.addPipeline(net, peerType, peerNo, mark)
 	if oldPipeline != nil {
 		oldPipeline.Stop()
 	}
@@ -43,12 +43,12 @@ func (c *client) AddPipeline(net Net, peerType uint32, peerNo uint32, service st
 	return newPipeline, nil
 }
 
-func (c *client) GetPipeline(peerType uint32, peerNo uint32, service string) (*Pipeline, bool) {
-	return c.getPipeline(peerType, peerNo, service)
+func (c *client) GetPipeline(peerType uint32, peerNo uint32, mark string) (*Pipeline, bool) {
+	return c.getPipeline(peerType, peerNo, mark)
 }
 
-func (c *client) RemovePipeline(peerType uint32, peerNo uint32, service string) {
-	pipeline, ok := c.removePipeline(peerType, peerNo, service)
+func (c *client) RemovePipeline(peerType uint32, peerNo uint32, mark string) {
+	pipeline, ok := c.removePipeline(peerType, peerNo, mark)
 	if ok {
 		pipeline.Stop()
 	}
@@ -67,19 +67,19 @@ func (c *client) RemoveAllPeers() {
 	c.removeAllPeers()
 }
 
-func (c *client) Call(peerType uint32, peerNo uint32, service string, funcName string, reqObj interface{}, respObj interface{}) (int32, error) {
-	pipeline, ok := c.getPipeline(peerType, peerNo, service)
+func (c *client) Call(peerType uint32, peerNo uint32, mark string, service string, funcName string, reqObj interface{}, respObj interface{}) (int32, error) {
+	pipeline, ok := c.getPipeline(peerType, peerNo, mark)
 	if ok {
-		return pipeline.Call(funcName, reqObj, respObj)
+		return pipeline.Call(service, funcName, reqObj, respObj)
 	}
 
 	return RES_CODE_SYS_ERR, ErrServNotExist
 }
 
-func (c *client) AsyncCall(peerType uint32, peerNo uint32, service string, cb func(code int32, resp interface{}, err error), funcName string, reqObj interface{}, respObj interface{}) {
-	pipeline, ok := c.getPipeline(peerType, peerNo, service)
+func (c *client) AsyncCall(peerType uint32, peerNo uint32, mark string, service string, cb func(code int32, resp interface{}, err error), funcName string, reqObj interface{}, respObj interface{}) {
+	pipeline, ok := c.getPipeline(peerType, peerNo, mark)
 	if ok {
-		pipeline.AsyncCall(cb, funcName, reqObj, respObj)
+		pipeline.AsyncCall(cb, service, funcName, reqObj, respObj)
 		return
 	}
 
@@ -88,17 +88,17 @@ func (c *client) AsyncCall(peerType uint32, peerNo uint32, service string, cb fu
 	}
 }
 
-func (c *client) CallNoReturn(peerType uint32, peerNo uint32, service string, funcName string, reqObj interface{}) error {
-	pipeline, ok := c.getPipeline(peerType, peerNo, service)
+func (c *client) CallNoReturn(peerType uint32, peerNo uint32, mark string, service string, funcName string, reqObj interface{}) error {
+	pipeline, ok := c.getPipeline(peerType, peerNo, mark)
 	if ok {
-		err := pipeline.CallNoReturn(funcName, reqObj)
+		err := pipeline.CallNoReturn(service, funcName, reqObj)
 		return err
 	}
 
 	return ErrServNotExist
 }
 
-func (c *client) addPipeline(net Net, peerType uint32, peerNo uint32, service string) (oldPipeline *Pipeline, newPipeline *Pipeline) {
+func (c *client) addPipeline(net Net, peerType uint32, peerNo uint32, mark string) (oldPipeline *Pipeline, newPipeline *Pipeline) {
 	c.lckPipelines.Lock()
 	defer c.lckPipelines.Unlock()
 
@@ -107,7 +107,7 @@ func (c *client) addPipeline(net Net, peerType uint32, peerNo uint32, service st
 	pipelines, ok := c.mapPeerId2Pipelines[peerId]
 	if ok {
 		for i, pipeline := range pipelines {
-			if pipeline.GetService() == service {
+			if pipeline.GetMark() == mark {
 				oldPipeline = pipeline
 				c.mapPeerId2Pipelines[peerId] = append(pipelines[:i], pipelines[i+1:]...)
 				break
@@ -115,12 +115,12 @@ func (c *client) addPipeline(net Net, peerType uint32, peerNo uint32, service st
 		}
 	}
 
-	newPipeline = NewPipeline(net, peerType, peerNo, service)
+	newPipeline = NewPipeline(net, peerType, peerNo, mark)
 	c.mapPeerId2Pipelines[peerId] = append(c.mapPeerId2Pipelines[peerId], newPipeline)
 	return oldPipeline, newPipeline
 }
 
-func (c *client) getPipeline(peerType uint32, peerNo uint32, service string) (*Pipeline, bool) {
+func (c *client) getPipeline(peerType uint32, peerNo uint32, mark string) (*Pipeline, bool) {
 	c.lckPipelines.Lock()
 	defer c.lckPipelines.Unlock()
 
@@ -128,7 +128,7 @@ func (c *client) getPipeline(peerType uint32, peerNo uint32, service string) (*P
 	pipelines, ok := c.mapPeerId2Pipelines[peerId]
 	if ok {
 		for _, pipeline := range pipelines {
-			if pipeline.GetService() == service {
+			if pipeline.GetMark() == mark {
 				return pipeline, true
 			}
 		}
@@ -137,7 +137,7 @@ func (c *client) getPipeline(peerType uint32, peerNo uint32, service string) (*P
 	return nil, false
 }
 
-func (c *client) removePipeline(peerType uint32, peerNo uint32, service string) (*Pipeline, bool) {
+func (c *client) removePipeline(peerType uint32, peerNo uint32, mark string) (*Pipeline, bool) {
 	c.lckPipelines.Lock()
 	defer c.lckPipelines.Unlock()
 
@@ -145,7 +145,7 @@ func (c *client) removePipeline(peerType uint32, peerNo uint32, service string) 
 	pipelines, ok := c.mapPeerId2Pipelines[peerId]
 	if ok {
 		for i, pipeline := range pipelines {
-			if pipeline.GetService() == service {
+			if pipeline.GetMark() == mark {
 				c.mapPeerId2Pipelines[peerId] = append(pipelines[:i], pipelines[i+1:]...)
 				return pipeline, true
 			}

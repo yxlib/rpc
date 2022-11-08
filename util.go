@@ -4,12 +4,14 @@
 
 package rpc
 
+import "fmt"
+
 func GetPeerId(peerType uint32, peerNo uint32) uint32 {
 	return peerType<<16 | peerNo
 }
 
 func GetFullFuncName(serviceName string, funcName string) string {
-	return serviceName + "." + funcName
+	return fmt.Sprintf("%s.%s", serviceName, funcName)
 }
 
 func CheckRpcMark(mark []byte, buff []byte) bool {

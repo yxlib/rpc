@@ -25,7 +25,7 @@ var (
 
 type Pipeline struct {
 	net            Net
-	service        string
+	mark           string
 	peerType       uint32
 	peerNo         uint32
 	mapFuncName2No map[string]uint16
@@ -40,10 +40,10 @@ type Pipeline struct {
 	logger *yx.Logger
 }
 
-func NewPipeline(net Net, peerType uint32, peerNo uint32, service string) *Pipeline {
+func NewPipeline(net Net, peerType uint32, peerNo uint32, mark string) *Pipeline {
 	p := &Pipeline{
 		net:            net,
-		service:        service,
+		mark:           mark,
 		peerType:       peerType,
 		peerNo:         peerNo,
 		mapFuncName2No: make(map[string]uint16),
@@ -58,12 +58,12 @@ func NewPipeline(net Net, peerType uint32, peerNo uint32, service string) *Pipel
 		logger: yx.NewLogger("rpc.Pipeline"),
 	}
 
-	p.net.SetService(p.service, false, peerType, peerNo)
+	p.net.SetMark(p.mark, peerType, peerNo)
 	return p
 }
 
-func (p *Pipeline) GetService() string {
-	return p.service
+func (p *Pipeline) GetMark() string {
+	return p.mark
 }
 
 func (p *Pipeline) SetInterceptor(inter Interceptor) {
@@ -93,12 +93,12 @@ func (p *Pipeline) Stop() {
 	p.stopAllRequest()
 }
 
-func (p *Pipeline) FetchFuncList() error {
+func (p *Pipeline) FetchFuncList(funcNo uint16) error {
 	if p.inter == nil {
 		return p.ec.Throw("FetchFuncList", ErrPipelineInterNil)
 	}
 
-	code, payload, err := p.CallByFuncNo(RPC_FUNC_NO_FUNC_LIST, false)
+	code, payload, err := p.CallByFuncNo(funcNo, false)
 	if err != nil {
 		return p.ec.Throw("FetchFuncList", err)
 	}
@@ -109,7 +109,7 @@ func (p *Pipeline) FetchFuncList() error {
 	}
 
 	resp := &FetchFuncListResp{}
-	fullFuncName := GetFullFuncName(p.service, RPC_FUNC_NAME_FUNC_LIST)
+	fullFuncName := GetFullFuncName("", RPC_FUNC_NAME_FUNC_LIST)
 	err = p.inter.OnUnmarshal(fullFuncName, payload, resp)
 	if err != nil {
 		return p.ec.Throw("FetchFuncList", err)
@@ -128,7 +128,7 @@ func (p *Pipeline) FetchFuncList() error {
 	// return nil
 }
 
-func (p *Pipeline) AsyncFetchFuncList(cb func(err error)) {
+func (p *Pipeline) AsyncFetchFuncList(cb func(err error), funcNo uint16) {
 	if p.inter == nil {
 		if cb != nil {
 			cb(ErrPipelineInterNil)
@@ -138,27 +138,27 @@ func (p *Pipeline) AsyncFetchFuncList(cb func(err error)) {
 	}
 
 	go func() {
-		err := p.FetchFuncList()
+		err := p.FetchFuncList(funcNo)
 		if cb != nil {
 			cb(err)
 		}
 	}()
 }
 
-func (p *Pipeline) Call(funcName string, reqObj interface{}, respObj interface{}) (int32, error) {
+func (p *Pipeline) Call(serviceName string, funcName string, reqObj interface{}, respObj interface{}) (int32, error) {
 	code := RES_CODE_SYS_ERR
 
 	if p.inter == nil {
 		return code, p.ec.Throw("Call", ErrPipelineInterNil)
 	}
 
-	fullFuncName := GetFullFuncName(p.service, funcName)
+	fullFuncName := GetFullFuncName(serviceName, funcName)
 	params, err := p.inter.OnMarshal(fullFuncName, reqObj)
 	if err != nil {
 		return code, p.ec.Throw("Call", err)
 	}
 
-	code, buff, err := p.CallByFuncName(funcName, false, params)
+	code, buff, err := p.CallByFuncName(serviceName, funcName, false, params)
 	if err != nil {
 		return code, p.ec.Throw("Call", err)
 	}
@@ -173,7 +173,7 @@ func (p *Pipeline) Call(funcName string, reqObj interface{}, respObj interface{}
 	return code, nil
 }
 
-func (p *Pipeline) AsyncCall(cb func(code int32, resp interface{}, err error), funcName string, reqObj interface{}, respObj interface{}) {
+func (p *Pipeline) AsyncCall(cb func(code int32, resp interface{}, err error), serviceName string, funcName string, reqObj interface{}, respObj interface{}) {
 	if p.inter == nil {
 		if cb != nil {
 			cb(RES_CODE_SYS_ERR, respObj, ErrPipelineInterNil)
@@ -183,30 +183,31 @@ func (p *Pipeline) AsyncCall(cb func(code int32, resp interface{}, err error), f
 	}
 
 	go func() {
-		code, err := p.Call(funcName, reqObj, respObj)
+		code, err := p.Call(serviceName, funcName, reqObj, respObj)
 		if cb != nil {
 			cb(code, respObj, err)
 		}
 	}()
 }
 
-func (p *Pipeline) CallNoReturn(funcName string, reqObj interface{}) error {
+func (p *Pipeline) CallNoReturn(serviceName string, funcName string, reqObj interface{}) error {
 	if p.inter == nil {
 		return p.ec.Throw("CallNoReturn", ErrPipelineInterNil)
 	}
 
-	fullFuncName := GetFullFuncName(p.service, funcName)
+	fullFuncName := GetFullFuncName(serviceName, funcName)
 	params, err := p.inter.OnMarshal(fullFuncName, reqObj)
 	if err != nil {
 		return p.ec.Throw("CallNoReturn", err)
 	}
 
-	_, _, err = p.CallByFuncName(funcName, true, params)
+	_, _, err = p.CallByFuncName(serviceName, funcName, true, params)
 	return p.ec.Throw("CallNoReturn", err)
 }
 
-func (p *Pipeline) CallByFuncName(funcName string, bNoReturn bool, params ...[]byte) (int32, []byte, error) {
-	funcNo, ok := p.mapFuncName2No[funcName]
+func (p *Pipeline) CallByFuncName(serviceName string, funcName string, bNoReturn bool, params ...[]byte) (int32, []byte, error) {
+	fullFuncName := GetFullFuncName(serviceName, funcName)
+	funcNo, ok := p.mapFuncName2No[fullFuncName]
 	if !ok {
 		return RES_CODE_SYS_ERR, nil, p.ec.Throw("CallByFuncName", ErrPipelineNotSupportFunc)
 	}
@@ -280,7 +281,7 @@ func (p *Pipeline) callNoReturnImpl(funcNo uint16, params ...[]byte) error {
 	var err error = nil
 	defer p.ec.DeferThrow("callNoReturnImpl", &err)
 
-	h := NewPackHeader(p.service, 0, funcNo)
+	h := NewPackHeader(p.mark, 0, funcNo)
 	headerData, err := h.Marshal()
 	if err != nil {
 		return err
@@ -305,7 +306,7 @@ func (p *Pipeline) addRequest(funcNo uint16, params ...[]byte) (*Request, []Byte
 	defer p.lckRequests.Unlock()
 
 	sno := p.maxSerialNo + 1
-	h := NewPackHeader(p.service, sno, funcNo)
+	h := NewPackHeader(p.mark, sno, funcNo)
 	headerData, err := h.Marshal()
 	if err != nil {
 		return nil, nil, p.ec.Throw("addRequest", err)
@@ -313,7 +314,7 @@ func (p *Pipeline) addRequest(funcNo uint16, params ...[]byte) (*Request, []Byte
 
 	req := NewRequest(h)
 	if len(params) > 0 {
-		req.AddFrames(params)
+		req.AddFrames(params...)
 	}
 
 	payload := make([]ByteArray, 0)
@@ -380,7 +381,7 @@ func (p *Pipeline) readPackLoop() {
 			break
 		}
 
-		h := NewPackHeader(p.service, 0, 0)
+		h := NewPackHeader(p.mark, 0, 0)
 		err = h.Unmarshal(data.Payload)
 		if err != nil {
 			p.ec.Catch("readPackLoop", &err)
