@@ -93,12 +93,12 @@ func (p *Pipeline) Stop() {
 	p.stopAllRequest()
 }
 
-func (p *Pipeline) FetchFuncList(funcNo uint16) error {
+func (p *Pipeline) FetchFuncList() error {
 	if p.inter == nil {
 		return p.ec.Throw("FetchFuncList", ErrPipelineInterNil)
 	}
 
-	code, payload, err := p.CallByFuncNo(funcNo, false)
+	code, payload, err := p.CallByFuncNo(RPC_FUNC_NO_FUNC_LIST, false)
 	if err != nil {
 		return p.ec.Throw("FetchFuncList", err)
 	}
@@ -128,7 +128,7 @@ func (p *Pipeline) FetchFuncList(funcNo uint16) error {
 	// return nil
 }
 
-func (p *Pipeline) AsyncFetchFuncList(cb func(err error), funcNo uint16) {
+func (p *Pipeline) AsyncFetchFuncList(cb func(err error)) {
 	if p.inter == nil {
 		if cb != nil {
 			cb(ErrPipelineInterNil)
@@ -138,7 +138,7 @@ func (p *Pipeline) AsyncFetchFuncList(cb func(err error), funcNo uint16) {
 	}
 
 	go func() {
-		err := p.FetchFuncList(funcNo)
+		err := p.FetchFuncList()
 		if cb != nil {
 			cb(err)
 		}
